@@ -192,6 +192,8 @@ const TransactionCard = ({ transaction, onUpdate, isUpdating }: TransactionCardP
   };
 
   const formatAmount = (amount: number, currency: string) => {
+    console.log('Formatting amount:', amount, 'currency:', currency);
+    
     if (currency === 'CLP') {
       return new Intl.NumberFormat('es-CL', {
         style: 'currency',
@@ -199,7 +201,13 @@ const TransactionCard = ({ transaction, onUpdate, isUpdating }: TransactionCardP
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
       }).format(amount);
+    } else if (currency === 'USD') {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+      }).format(amount);
     } else {
+      // Fallback for unknown currencies
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: currency || 'USD',
