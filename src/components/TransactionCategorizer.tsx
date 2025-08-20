@@ -18,6 +18,8 @@ interface Transaction {
   transaction_timestamp_local: string;
   category: string | null;
   description: string | null;
+  transaction_type: string | null;
+  transferation_type: string | null;
 }
 
 export const TransactionCategorizer = () => {
@@ -34,7 +36,7 @@ export const TransactionCategorizer = () => {
     try {
       const { data, error } = await supabase
         .from('transactions')
-        .select('Id, payment_reason, amount, currency, transaction_timestamp_local, category, description')
+        .select('Id, payment_reason, amount, currency, transaction_timestamp_local, category, description, transaction_type, transferation_type')
         .is('category', null)
         .order('transaction_timestamp_local', { ascending: false });
 
@@ -62,7 +64,20 @@ export const TransactionCategorizer = () => {
     
     try {
       if (applyToAll) {
-        // Update all transactions with the same payment_reason
+        // First, create/update the categorization rule
+        const { error: ruleError } = await supabase
+          .from('categorization_rules')
+          .upsert({
+            payment_reason: paymentReason,
+            category,
+            description: description || null
+          }, {
+            onConflict: 'payment_reason'
+          });
+
+        if (ruleError) throw ruleError;
+
+        // Update all existing uncategorized transactions with the same payment_reason
         const { error } = await supabase
           .from('transactions')
           .update({ category, description })
@@ -73,7 +88,7 @@ export const TransactionCategorizer = () => {
         
         toast({
           title: "Success",
-          description: `Updated all transactions with payment reason: "${paymentReason}"`,
+          description: `Updated all transactions with payment reason: "${paymentReason}" and created rule for future transactions`,
         });
       } else {
         // Update only this transaction
@@ -160,18 +175,36 @@ const TransactionCard = ({ transaction, onUpdate, isUpdating }: TransactionCardP
   const [description, setDescription] = useState(transaction.description || "");
   const [applyToAll, setApplyToAll] = useState(false);
 
+  // Determine if this is a "Transferencia a Terceros" case
+  const isTransferToThird = transaction.transaction_type === "Transferencia" && 
+                           transaction.transferation_type === "Transferencia a Terceros";
+
+  // Get the effective payment reason (use transferation_type for third party transfers)
+  const effectivePaymentReason = isTransferToThird ? 
+    transaction.transferation_type : 
+    transaction.payment_reason;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!category.trim()) return;
     
-    onUpdate(transaction.Id, category.trim(), description.trim(), applyToAll, transaction.payment_reason);
+    onUpdate(transaction.Id, category.trim(), description.trim(), applyToAll, effectivePaymentReason);
   };
 
   const formatAmount = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-    }).format(amount);
+    if (currency === 'CLP') {
+      return new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(amount);
+    } else {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency || 'USD',
+      }).format(amount);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -190,7 +223,7 @@ const TransactionCard = ({ transaction, onUpdate, isUpdating }: TransactionCardP
         <CardTitle className="flex justify-between items-start">
           <div className="flex-1 min-w-0">
             <p className="text-lg font-semibold text-foreground truncate">
-              {transaction.payment_reason}
+              {effectivePaymentReason}
             </p>
             <p className="text-sm text-muted-foreground">
               {formatDate(transaction.transaction_timestamp_local)}
@@ -229,17 +262,19 @@ const TransactionCard = ({ transaction, onUpdate, isUpdating }: TransactionCardP
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id={`apply-all-${transaction.Id}`}
-              checked={applyToAll}
-              onCheckedChange={(checked) => setApplyToAll(checked === true)}
-              disabled={isUpdating}
-            />
-            <Label htmlFor={`apply-all-${transaction.Id}`} className="text-sm">
-              Always apply this category to "{transaction.payment_reason}"
-            </Label>
-          </div>
+          {!isTransferToThird && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id={`apply-all-${transaction.Id}`}
+                checked={applyToAll}
+                onCheckedChange={(checked) => setApplyToAll(checked === true)}
+                disabled={isUpdating}
+              />
+              <Label htmlFor={`apply-all-${transaction.Id}`} className="text-sm">
+                Always apply this category to "{effectivePaymentReason}"
+              </Label>
+            </div>
+          )}
 
           <Button 
             type="submit" 

@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      categorization_rules: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          payment_reason: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          payment_reason: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          payment_reason?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number | null
