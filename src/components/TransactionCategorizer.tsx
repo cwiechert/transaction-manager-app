@@ -99,7 +99,7 @@ export const TransactionCategorizer = () => {
         // Update all existing uncategorized transactions with the same payment_reason
         const { error } = await supabase
           .from('transactions')
-          .update({ category, description })
+          .update({ category })
           .eq('payment_reason', paymentReason)
           .is('category', null);
 
