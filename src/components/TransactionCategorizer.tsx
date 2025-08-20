@@ -216,13 +216,13 @@ export const TransactionCategorizer = () => {
         <Tabs defaultValue="categorize" className="w-full">
           <TabsList className="grid w-full grid-cols-3 gap-1">
             <TabsTrigger value="categorize" className="text-xs sm:text-sm px-2 sm:px-4">
-              <span className="hidden sm:inline">categorize </span>transactions
+              <span className="hidden sm:inline">Categorize </span>Transactions
             </TabsTrigger>
             <TabsTrigger value="edit" className="text-xs sm:text-sm px-2 sm:px-4">
-              <span className="hidden sm:inline">edit </span>recent
+              <span className="hidden sm:inline">Edit </span>Recent
             </TabsTrigger>
             <TabsTrigger value="visualizations" className="text-xs sm:text-sm px-2 sm:px-4">
-              visualizations
+              Visualizations
             </TabsTrigger>
           </TabsList>
           
@@ -291,9 +291,9 @@ export const TransactionCategorizer = () => {
           <TabsContent value="visualizations" className="space-y-6">
             <Tabs defaultValue="overview" className="w-full">
               <TabsList className="grid w-full grid-cols-2 gap-1">
-                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-4">overview</TabsTrigger>
+                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-4">Overview</TabsTrigger>
                 <TabsTrigger value="category-analysis" className="text-xs sm:text-sm px-2 sm:px-4">
-                  <span className="hidden sm:inline">category </span>analysis
+                  <span className="hidden sm:inline">Category </span>Analysis
                 </TabsTrigger>
               </TabsList>
               
