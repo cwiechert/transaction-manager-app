@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Loader2, Edit, BarChart3, PieChart, TrendingUp, LogOut, RefreshCw } from "lucide-react";
+import { Loader2, Edit, BarChart3, PieChart, TrendingUp, LogOut } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Tooltip } from 'recharts';
 
 interface Transaction {
@@ -34,7 +34,6 @@ export const TransactionCategorizer = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [transactionLimit, setTransactionLimit] = useState(10);
   const { toast } = useToast();
   const { user, signOut } = useAuth();
@@ -184,38 +183,6 @@ export const TransactionCategorizer = () => {
     }
   };
 
-  const refreshTransactionData = async () => {
-    setRefreshing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('refresh-transaction-data');
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Data refresh has been triggered. Please wait a few minutes for new transactions to appear.",
-      });
-      
-      // Refresh the data after a brief delay
-      setTimeout(() => {
-        fetchUncategorizedTransactions();
-        fetchRecentTransactions();
-        fetchAllTransactions();
-        fetchCategories();
-      }, 2000);
-      
-    } catch (error) {
-      console.error('Failed to refresh data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to trigger data refresh. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -233,16 +200,6 @@ export const TransactionCategorizer = () => {
             {user && <p className="text-sm text-muted-foreground">Welcome, {user.email}</p>}
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshTransactionData}
-              disabled={refreshing}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? 'Refreshing...' : 'Refresh Data'}
-            </Button>
             <Button
               variant="outline"
               size="sm"
