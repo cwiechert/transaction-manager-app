@@ -1132,6 +1132,93 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
           })()}
         </CardContent>
       </Card>
+
+      {/* Current Month Transaction List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-gradient-to-br from-blue-400 to-blue-600 rounded-sm"></div>
+            Current Month Transactions
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            All transactions from {(() => {
+              const now = new Date();
+              return now.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+            })()} sorted by date (newest first)
+          </p>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            // Get current month transactions
+            const now = new Date();
+            const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            
+            const currentMonthTransactions = filteredTransactions
+              .filter(t => {
+                const txDate = new Date(t.transaction_timestamp_local);
+                const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                return txMonth === currentMonth;
+              })
+              .sort((a, b) => new Date(b.transaction_timestamp_local).getTime() - new Date(a.transaction_timestamp_local).getTime());
+
+            if (currentMonthTransactions.length === 0) {
+              return (
+                <div className="text-center py-8 text-muted-foreground">
+                  No transactions found for the current month
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {currentMonthTransactions.map((transaction) => (
+                  <div key={transaction.Id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {transaction.category && (
+                          <span className="inline-block px-2 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full">
+                            {transaction.category}
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-medium text-sm truncate">
+                        {transaction.payment_reason}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(transaction.transaction_timestamp_local).toLocaleDateString('es-CL', {
+                          weekday: 'short',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      {transaction.description && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {transaction.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right ml-4">
+                      <div className="font-bold text-sm">
+                        {new Intl.NumberFormat('es-CL', {
+                          style: 'currency',
+                          currency: 'CLP',
+                          minimumFractionDigits: 0,
+                        }).format(Math.abs(transaction.amount))}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {transaction.currency}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
     </div>
   );
 };
