@@ -234,6 +234,13 @@ export const TransactionCategorizer = () => {
             {user && <p className="text-sm text-muted-foreground">Welcome, {user.email}</p>}
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              onClick={() => setShowRules(!showRules)}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              size="sm"
+            >
+              {showRules ? 'Hide Rules' : 'Manage Rules'}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -245,15 +252,6 @@ export const TransactionCategorizer = () => {
             </Button>
             <ThemeToggle />
           </div>
-        </div>
-
-        <div className="flex items-center gap-4 mb-6">
-          <Button 
-            onClick={() => setShowRules(!showRules)}
-            className="bg-red-600 hover:bg-red-700 text-white"
-          >
-            {showRules ? 'Hide Rules' : 'Manage Rules'}
-          </Button>
         </div>
 
         {showRules && (
