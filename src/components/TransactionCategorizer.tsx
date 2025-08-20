@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Loader2 } from "lucide-react";
 
 interface Transaction {
@@ -113,11 +114,14 @@ export const TransactionCategorizer = () => {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Transaction Categorizer</h1>
-          <p className="text-muted-foreground">
-            {transactions.length} uncategorized transactions found
-          </p>
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">Transaction Categorizer</h1>
+            <p className="text-muted-foreground">
+              {transactions.length} uncategorized transactions found
+            </p>
+          </div>
+          <ThemeToggle />
         </div>
 
         <div className="space-y-4">
