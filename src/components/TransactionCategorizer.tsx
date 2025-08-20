@@ -212,7 +212,9 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: Tran
   const getDisplayTitle = () => {
     if (transaction.transaction_type === "Transferencia") {
       if (transaction.transferation_type === "Transferencia a Terceros" || transaction.transferation_type === "Transferencias a Terceros") {
-        return transaction.transferation_destination || transaction.transferation_type || "Transferencia";
+        return transaction.transferation_destination 
+          ? `Transferencias a terceros: ${transaction.transferation_destination}`
+          : transaction.transferation_type || "Transferencia";
       }
       return transaction.transferation_type || transaction.payment_reason || "Transferencia";
     }
