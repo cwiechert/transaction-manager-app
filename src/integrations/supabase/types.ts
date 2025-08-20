@@ -57,6 +57,7 @@ export type Database = {
           transferation_destination: string | null
           transferation_source: string | null
           transferation_type: string | null
+          user_email: string | null
           user_id: string | null
         }
         Insert: {
@@ -74,6 +75,7 @@ export type Database = {
           transferation_destination?: string | null
           transferation_source?: string | null
           transferation_type?: string | null
+          user_email?: string | null
           user_id?: string | null
         }
         Update: {
@@ -91,6 +93,7 @@ export type Database = {
           transferation_destination?: string | null
           transferation_source?: string | null
           transferation_type?: string | null
+          user_email?: string | null
           user_id?: string | null
         }
         Relationships: []
