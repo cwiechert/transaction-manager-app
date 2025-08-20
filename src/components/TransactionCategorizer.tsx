@@ -332,6 +332,7 @@ export const TransactionCategorizer = () => {
               rules={categorizationRules}
               categories={categories}
               onRulesUpdate={fetchCategorizationRules}
+              allTransactions={allTransactions}
             />
           </TabsContent>
 
@@ -364,14 +365,16 @@ export const TransactionCategorizer = () => {
 const CategorizationRulesManager = ({ 
   rules, 
   categories, 
-  onRulesUpdate 
+  onRulesUpdate,
+  allTransactions
 }: { 
   rules: CategorizationRule[], 
   categories: string[], 
-  onRulesUpdate: () => void 
+  onRulesUpdate: () => void,
+  allTransactions: Transaction[]
 }) => {
   const [editingRule, setEditingRule] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<keyof CategorizationRule>('updated_at');
+  const [sortField, setSortField] = useState<keyof CategorizationRule | 'event_count'>('updated_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState({
     payment_reason: '',
@@ -383,6 +386,13 @@ const CategorizationRulesManager = ({
   const uniquePaymentReasons = [...new Set(rules.map(rule => rule.payment_reason))].sort();
   const uniqueCategories = [...new Set(rules.map(rule => rule.category))].sort();
 
+  // Calculate event counts for each rule
+  const getEventCount = (paymentReason: string) => {
+    return allTransactions.filter(transaction => 
+      transaction.payment_reason === paymentReason
+    ).length;
+  };
+
   // Filter and sort rules
   const filteredAndSortedRules = rules
     .filter(rule => {
@@ -391,17 +401,24 @@ const CategorizationRulesManager = ({
       return matchesPaymentReason && matchesCategory;
     })
     .sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
       const direction = sortDirection === 'asc' ? 1 : -1;
       
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return aValue.localeCompare(bValue) * direction;
+      if (sortField === 'event_count') {
+        const aCount = getEventCount(a.payment_reason);
+        const bCount = getEventCount(b.payment_reason);
+        return (aCount - bCount) * direction;
+      } else {
+        const aValue = a[sortField as keyof CategorizationRule];
+        const bValue = b[sortField as keyof CategorizationRule];
+        
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return aValue.localeCompare(bValue) * direction;
+        }
       }
       return 0;
     });
 
-  const handleSort = (field: keyof CategorizationRule) => {
+  const handleSort = (field: keyof CategorizationRule | 'event_count') => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -597,6 +614,21 @@ const CategorizationRulesManager = ({
                     </span>
                   </Button>
                 </th>
+                <th className="text-left p-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleSort('event_count')}
+                    className="font-semibold h-auto p-0 hover:bg-transparent"
+                  >
+                    Number of Events
+                    <span className="ml-2">
+                      {sortField === 'event_count' ? (
+                        sortDirection === 'asc' ? '↑' : '↓'
+                      ) : '↕'}
+                    </span>
+                  </Button>
+                </th>
                 <th className="text-left p-4">Actions</th>
               </tr>
             </thead>
@@ -606,6 +638,7 @@ const CategorizationRulesManager = ({
                   key={rule.id}
                   rule={rule}
                   categories={categories}
+                  eventCount={getEventCount(rule.payment_reason)}
                   isEditing={editingRule === rule.id}
                   onEdit={() => setEditingRule(rule.id)}
                   onSave={(updates) => updateRule(rule.id, updates)}
@@ -635,6 +668,7 @@ const CategorizationRulesManager = ({
 const CategorizationRuleRow = ({
   rule,
   categories,
+  eventCount,
   isEditing,
   onEdit,
   onSave,
@@ -643,6 +677,7 @@ const CategorizationRuleRow = ({
 }: {
   rule: CategorizationRule;
   categories: string[];
+  eventCount: number;
   isEditing: boolean;
   onEdit: () => void;
   onSave: (updates: Partial<CategorizationRule>) => void;
@@ -709,6 +744,11 @@ const CategorizationRuleRow = ({
       </td>
       <td className="p-4 text-sm text-muted-foreground">
         {new Date(rule.updated_at).toLocaleString()}
+      </td>
+      <td className="p-4 text-center">
+        <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+          {eventCount}
+        </span>
       </td>
       <td className="p-4">
         <div className="flex gap-2">
