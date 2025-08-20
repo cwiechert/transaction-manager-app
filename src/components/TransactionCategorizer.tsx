@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Loader2, Edit, BarChart, PieChart, TrendingUp } from "lucide-react";
+import { Loader2, Edit, BarChart3, PieChart, TrendingUp } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Tooltip } from 'recharts';
 
 interface Transaction {
@@ -736,7 +736,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <BarChart className="h-5 w-5" />
+                <BarChart3 className="h-5 w-5" />
                 Spending by Category
               </div>
               <div className="flex items-center gap-2">
@@ -985,7 +985,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
+            <BarChart3 className="h-5 w-5" />
             Category Monthly Change
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-2">
