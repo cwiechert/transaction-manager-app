@@ -981,15 +981,15 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
         </CardContent>
       </Card>
 
-      {/* Category Monthly Change Chart - Moved to bottom with improved scaling */}
+      {/* Category Monthly Change - Diverging Bar Chart */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Category Monthly Change (%)
+            Category Monthly Change
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-2">
-            *Values are capped at ±200% to maintain chart readability
+            Green bars show increases, red bars show decreases from previous month
           </p>
         </CardHeader>
         <CardContent>
@@ -1008,112 +1008,126 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
               return acc;
             }, {} as Record<string, Record<string, number>>);
 
-            // Get last 6 months sorted
+            // Get last 4 months sorted (fewer months for better readability)
             const allMonths = [...new Set(
               filteredTransactions.map(t => {
                 const date = new Date(t.transaction_timestamp_local);
                 return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
               })
-            )].sort().slice(-6);
+            )].sort().slice(-4);
 
-            // Calculate percentage changes for each category
-            const categoryChanges = Object.keys(monthlyByCategory).map(category => {
-              const monthlyData = allMonths.map(month => {
-                const currentAmount = monthlyByCategory[category][month] || 0;
-                const prevMonthIndex = allMonths.indexOf(month) - 1;
-                const prevAmount = prevMonthIndex >= 0 ? (monthlyByCategory[category][allMonths[prevMonthIndex]] || 0) : 0;
+            // Get top categories by total spending
+            const topCategories = Object.keys(monthlyByCategory)
+              .map(category => ({
+                category,
+                totalSpending: Object.values(monthlyByCategory[category] || {}).reduce((sum, val) => sum + val, 0)
+              }))
+              .sort((a, b) => b.totalSpending - a.totalSpending)
+              .slice(0, 6) // Top 6 categories
+              .map(item => item.category);
+
+            // Calculate changes for each month and category
+            const changeData = allMonths.slice(1).map(month => { // Skip first month (no previous data)
+              const monthIndex = allMonths.indexOf(month);
+              const prevMonth = allMonths[monthIndex - 1];
+              
+              const formattedMonth = (() => {
+                const [year, monthNum] = month.split('-');
+                const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                return date.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' });
+              })();
+
+              const categoryChanges = topCategories.map(category => {
+                const currentAmount = monthlyByCategory[category]?.[month] || 0;
+                const prevAmount = monthlyByCategory[category]?.[prevMonth] || 0;
                 
                 let change = 0;
                 if (prevAmount > 0) {
                   change = ((currentAmount - prevAmount) / prevAmount) * 100;
-                } else if (currentAmount > 0 && prevAmount === 0) {
-                  change = 200; // Cap new categories at 200%
+                } else if (currentAmount > 0) {
+                  change = 100; // New spending = 100% increase
                 }
                 
-                // Cap values at ±200% to prevent extreme outliers from ruining the scale
-                const cappedChange = Math.max(-200, Math.min(200, change));
+                // Cap extreme values for better visualization
+                change = Math.max(-100, Math.min(150, change));
                 
                 return {
-                  month,
-                  change: currentAmount > 0 ? cappedChange : null, // Only show changes when there's current spending
-                  formattedMonth: (() => {
-                    const [year, monthNum] = month.split('-');
-                    const date = new Date(parseInt(year), parseInt(monthNum) - 1);
-                    return date.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' });
-                  })()
+                  category,
+                  change: Math.round(change * 10) / 10, // Round to 1 decimal
+                  currentAmount,
+                  prevAmount
                 };
-              }).filter(item => item.change !== null); // Remove months with no spending
+              }).filter(item => item.currentAmount > 0 || item.prevAmount > 0); // Only show categories with activity
 
               return {
-                category,
-                data: monthlyData
+                month: formattedMonth,
+                changes: categoryChanges
               };
-            }).filter(item => item.data.length > 1); // Only include categories with at least 2 months of data
-
-            // Get top 5 categories by total spending for cleaner visualization
-            const topCategories = categoryChanges
-              .map(item => ({
-                ...item,
-                totalSpending: Object.values(monthlyByCategory[item.category] || {}).reduce((sum, val) => sum + val, 0)
-              }))
-              .sort((a, b) => b.totalSpending - a.totalSpending)
-              .slice(0, 5);
-
-            // Prepare chart data
-            const chartData = allMonths.map(month => {
-              const dataPoint: any = {
-                month: (() => {
-                  const [year, monthNum] = month.split('-');
-                  const date = new Date(parseInt(year), parseInt(monthNum) - 1);
-                  return date.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' });
-                })()
-              };
-
-              topCategories.forEach(({ category, data }) => {
-                const monthData = data.find(d => d.month === month);
-                dataPoint[category] = monthData ? monthData.change : null;
-              });
-
-              return dataPoint;
             });
 
-            const categoryColors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1'];
-
             return (
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis 
-                    domain={[-200, 200]}
-                    tickFormatter={(value) => `${value.toFixed(0)}%`}
-                  />
-                  <Tooltip
-                    formatter={(value: number) => [
-                      value !== null ? `${value > 0 ? '+' : ''}${value.toFixed(1)}%` : 'No data',
-                      'Change'
-                    ]}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Legend />
-                  {topCategories.map((item, index) => (
-                    <Line 
-                      key={item.category}
-                      type="monotone" 
-                      dataKey={item.category} 
-                      stroke={categoryColors[index]} 
-                      strokeWidth={2}
-                      connectNulls={false}
-                      dot={{ r: 4 }}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="space-y-6">
+                {changeData.map(({ month, changes }) => (
+                  <div key={month} className="space-y-3">
+                    <h4 className="font-medium text-sm text-muted-foreground">{month}</h4>
+                    <div className="space-y-2">
+                      {changes.map(({ category, change, currentAmount, prevAmount }) => (
+                        <div key={category} className="flex items-center gap-4">
+                          <div className="w-28 text-sm font-medium truncate flex-shrink-0">
+                            {category}
+                          </div>
+                          
+                          <div className="flex-1 relative">
+                            <div className="flex items-center h-8">
+                              {/* Background scale */}
+                              <div className="absolute inset-0 flex items-center">
+                                <div className="w-1/2 border-r border-border"></div>
+                              </div>
+                              
+                              {/* Bar */}
+                              <div className="relative w-full flex items-center justify-center">
+                                {change !== 0 && (
+                                  <div
+                                    className={`h-6 ${change > 0 ? 'bg-green-500' : 'bg-red-500'} transition-all duration-300`}
+                                    style={{
+                                      width: `${Math.abs(change) / 150 * 50}%`, // Scale to half width max
+                                      marginLeft: change > 0 ? '50%' : `${50 - (Math.abs(change) / 150 * 50)}%`
+                                    }}
+                                  />
+                                )}
+                                
+                                {/* Center line */}
+                                <div className="absolute left-1/2 transform -translate-x-1/2 w-0.5 h-8 bg-border"></div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="w-16 text-right text-sm font-medium flex-shrink-0">
+                            <span className={change > 0 ? 'text-green-600' : change < 0 ? 'text-red-600' : 'text-muted-foreground'}>
+                              {change > 0 ? '+' : ''}{change.toFixed(1)}%
+                            </span>
+                          </div>
+                          
+                          <div className="w-24 text-right text-xs text-muted-foreground flex-shrink-0">
+                            {new Intl.NumberFormat('es-CL', {
+                              style: 'currency',
+                              currency: 'CLP',
+                              notation: 'compact',
+                              minimumFractionDigits: 0
+                            }).format(currentAmount)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                
+                {changeData.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Not enough data to show monthly changes
+                  </div>
+                )}
+              </div>
             );
           })()}
         </CardContent>
