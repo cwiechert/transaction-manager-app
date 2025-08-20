@@ -67,7 +67,8 @@ export const TransactionCategorizer = () => {
 
       if (error) throw error;
       
-      const uniqueCategories = [...new Set(data?.map(item => item.category) || [])];
+      const uniqueCategories = [...new Set(data?.map(item => item.category) || [])]
+        .filter(category => category !== 'Pago de Tarjeta de Crédito'); // Hide auto-categorized items
       setCategories(uniqueCategories);
     } catch (error) {
       console.error('Failed to fetch categories:', error);
