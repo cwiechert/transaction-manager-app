@@ -269,7 +269,20 @@ export const TransactionCategorizer = () => {
           </TabsContent>
 
           <TabsContent value="visualizations" className="space-y-6">
-            <TransactionVisualizations transactions={allTransactions} />
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="category-analysis">Category Analysis</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="overview" className="space-y-6">
+                <TransactionVisualizations transactions={allTransactions} />
+              </TabsContent>
+              
+              <TabsContent value="category-analysis" className="space-y-6">
+                <CategoryAnalysis transactions={allTransactions} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </div>
@@ -1230,6 +1243,213 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                     </div>
                   </div>
                 ))}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Category Analysis Component
+const CategoryAnalysis = ({ transactions }: { transactions: Transaction[] }) => {
+  const [selectedCategory, setSelectedCategory] = useState<string>('Otros');
+  const [selectedMonths, setSelectedMonths] = useState<number>(3);
+  
+  // Get unique categories
+  const allCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
+  
+  // Filter transactions based on category and time period
+  const filteredTransactions = transactions.filter(transaction => {
+    // Category filter
+    if (transaction.category !== selectedCategory) {
+      return false;
+    }
+    
+    // Month filter
+    const transactionDate = new Date(transaction.transaction_timestamp_local);
+    const cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - selectedMonths);
+    
+    if (transactionDate < cutoffDate) {
+      return false;
+    }
+    
+    return true;
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Filter Controls */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-card rounded-lg border">
+        <div className="space-y-2">
+          <Label>Category</Label>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {allCategories.map(category => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label>Time Period</Label>
+          <Select value={selectedMonths.toString()} onValueChange={(value) => setSelectedMonths(parseInt(value))}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Last 1 month</SelectItem>
+              <SelectItem value="3">Last 3 months</SelectItem>
+              <SelectItem value="6">Last 6 months</SelectItem>
+              <SelectItem value="12">Last 12 months</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Payment Reason vs Month Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-gradient-to-br from-purple-400 to-purple-600 rounded-sm"></div>
+            Payment Reason by Month - {selectedCategory}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Shows spending patterns for each payment reason across the selected time period
+          </p>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            // Create table data structure
+            const tableData = filteredTransactions.reduce((acc, transaction) => {
+              const date = new Date(transaction.transaction_timestamp_local);
+              const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+              const paymentReason = transaction.payment_reason || 'No payment reason';
+              
+              if (!acc[paymentReason]) {
+                acc[paymentReason] = {};
+              }
+              
+              acc[paymentReason][monthKey] = (acc[paymentReason][monthKey] || 0) + Math.abs(transaction.amount);
+              return acc;
+            }, {} as Record<string, Record<string, number>>);
+
+            // Get all months in the data, sorted
+            const allMonths = [...new Set(
+              filteredTransactions.map(t => {
+                const date = new Date(t.transaction_timestamp_local);
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+              })
+            )].sort();
+
+            // Get all payment reasons that have data
+            const paymentReasons = Object.keys(tableData)
+              .filter(reason => Object.keys(tableData[reason]).length > 0)
+              .sort();
+
+            const formatMonth = (monthKey: string) => {
+              const [year, month] = monthKey.split('-');
+              const date = new Date(parseInt(year), parseInt(month) - 1);
+              return date.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' });
+            };
+
+            const formatCurrency = (value: number) => {
+              return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+                notation: 'compact'
+              }).format(value);
+            };
+
+            if (paymentReasons.length === 0) {
+              return (
+                <div className="text-center py-8 text-muted-foreground">
+                  No transactions found for category "{selectedCategory}" in the selected time period
+                </div>
+              );
+            }
+
+            return (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="sticky left-0 bg-background border border-border p-3 text-left font-medium min-w-48">
+                        Payment Reason
+                      </th>
+                      {allMonths.map(month => (
+                        <th key={month} className="border border-border p-3 text-center font-medium min-w-24 text-sm">
+                          {formatMonth(month)}
+                        </th>
+                      ))}
+                      <th className="border border-border p-3 text-center font-medium min-w-24 text-sm">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentReasons.map(paymentReason => {
+                      const reasonTotal = Object.values(tableData[paymentReason] || {})
+                        .reduce((sum, val) => sum + val, 0);
+                      
+                      return (
+                        <tr key={paymentReason} className="hover:bg-muted/50">
+                          <td className="sticky left-0 bg-background border border-border p-3 font-medium text-sm">
+                            {paymentReason}
+                          </td>
+                          {allMonths.map(month => {
+                            const value = tableData[paymentReason]?.[month] || 0;
+                            
+                            return (
+                              <td 
+                                key={month} 
+                                className="border border-border p-3 text-center text-sm"
+                              >
+                                {value > 0 ? formatCurrency(value) : '-'}
+                              </td>
+                            );
+                          })}
+                          <td className="border border-border p-3 text-center text-sm font-bold bg-muted">
+                            {formatCurrency(reasonTotal)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="bg-muted font-bold">
+                      <td className="sticky left-0 bg-muted border border-border p-3 font-bold text-sm">
+                        Total
+                      </td>
+                      {allMonths.map(month => {
+                        const monthTotal = paymentReasons.reduce((sum, reason) => {
+                          return sum + (tableData[reason]?.[month] || 0);
+                        }, 0);
+                        
+                        return (
+                          <td key={month} className="border border-border p-3 text-center text-sm font-bold">
+                            {formatCurrency(monthTotal)}
+                          </td>
+                        );
+                      })}
+                      <td className="border border-border p-3 text-center text-sm font-bold">
+                        {formatCurrency(
+                          paymentReasons.reduce((sum, reason) => {
+                            return sum + Object.values(tableData[reason] || {})
+                              .reduce((reasonSum, val) => reasonSum + val, 0);
+                          }, 0)
+                        )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             );
           })()}
