@@ -765,6 +765,45 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
 
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Monthly Spending Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Monthly Spending Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={monthlyChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis 
+                  tickFormatter={(value) => 
+                    new Intl.NumberFormat('es-CL', {
+                      style: 'currency',
+                      currency: 'CLP',
+                      minimumFractionDigits: 0,
+                      notation: 'compact'
+                    }).format(value)
+                  }
+                />
+                <Tooltip
+                  formatter={(value: number) => [
+                    new Intl.NumberFormat('es-CL', {
+                      style: 'currency',
+                      currency: 'CLP',
+                      minimumFractionDigits: 0,
+                    }).format(value),
+                    'Amount'
+                  ]}
+                />
+                <Line type="monotone" dataKey="amount" stroke="#8884d8" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
         {/* Category Spending Horizontal Bar Chart */}
         <Card>
           <CardHeader>
@@ -818,45 +857,6 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Monthly Spending Trend */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Monthly Spending Trend
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis 
-                  tickFormatter={(value) => 
-                    new Intl.NumberFormat('es-CL', {
-                      style: 'currency',
-                      currency: 'CLP',
-                      minimumFractionDigits: 0,
-                      notation: 'compact'
-                    }).format(value)
-                  }
-                />
-                <Tooltip
-                  formatter={(value: number) => [
-                    new Intl.NumberFormat('es-CL', {
-                      style: 'currency',
-                      currency: 'CLP',
-                      minimumFractionDigits: 0,
-                    }).format(value),
-                    'Amount'
-                  ]}
-                />
-                <Line type="monotone" dataKey="amount" stroke="#8884d8" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
@@ -1373,7 +1373,7 @@ const CategoryAnalysis = ({ transactions }: { transactions: Transaction[] }) => 
             const getHeatmapColor = (value: number) => {
               if (!value || maxValue === 0) return 'transparent';
               const intensity = Math.min(value / maxValue, 1);
-              return `hsl(280 ${Math.round(40 + intensity * 60)}% ${Math.round(80 - intensity * 30)}%)`;
+              return `hsl(25 ${Math.round(70 + intensity * 30)}% ${Math.round(75 - intensity * 45)}%)`;
             };
 
             const formatMonth = (monthKey: string) => {
