@@ -60,8 +60,9 @@ export const TransactionCategorizer = () => {
   const fetchCategories = async () => {
     try {
       const { data, error } = await supabase
-        .from('categorization_rules')
+        .from('transactions')
         .select('category')
+        .not('category', 'is', null)
         .order('category');
 
       if (error) throw error;
