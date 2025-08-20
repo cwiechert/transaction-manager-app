@@ -287,6 +287,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   const availableCategories = allCategories.filter(cat => !defaultExcludedCategories.includes(cat));
   const [selectedCategories, setSelectedCategories] = useState<string[]>(availableCategories);
   const [selectedMonths, setSelectedMonths] = useState<number>(3); // Default to last 3 months
+  const [categoryChartView, setCategoryChartView] = useState<'filtered' | 'current'>('filtered');
   
   // Filter transactions based on selected filters
   const filteredTransactions = transactions.filter(transaction => {
@@ -317,7 +318,14 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   });
 
   // Prepare data for category spending chart
-  const categoryData = filteredTransactions.reduce((acc, transaction) => {
+  const categoryData = (categoryChartView === 'current' 
+    ? filteredTransactions.filter(t => {
+        const txDate = new Date(t.transaction_timestamp_local);
+        const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+        return txMonth === currentMonth;
+      })
+    : filteredTransactions
+  ).reduce((acc, transaction) => {
     const category = transaction.category || 'Uncategorized';
     acc[category] = (acc[category] || 0) + Math.abs(transaction.amount);
     return acc;
@@ -712,7 +720,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-6 text-center">
             <div className={`text-2xl font-bold ${monthOverMonthChange >= 0 ? 'text-red-500' : 'text-green-500'}`}>
               {monthOverMonthChange >= 0 ? '+' : ''}{monthOverMonthChange.toFixed(1)}%
             </div>
@@ -725,9 +733,23 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
         {/* Category Spending Horizontal Bar Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart className="h-5 w-5" />
-              Spending by Category
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart className="h-5 w-5" />
+                Spending by Category
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">View:</Label>
+                <Select value={categoryChartView} onValueChange={(value: 'filtered' | 'current') => setCategoryChartView(value)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="filtered">Filtered Period</SelectItem>
+                    <SelectItem value="current">Current Month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -908,7 +930,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                                 className="border border-border p-1 text-center text-xs relative"
                                 style={{
                                   backgroundColor: value > 0 
-                                    ? `hsl(120 ${Math.round(30 + intensity * 50)}% ${Math.round(85 - intensity * 35)}%)` 
+                                    ? `hsl(120 ${Math.round(40 + intensity * 60)}% ${Math.round(70 - intensity * 50)}%)` 
                                     : 'transparent'
                                 }}
                               >
