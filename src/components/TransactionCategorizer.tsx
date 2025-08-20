@@ -279,16 +279,23 @@ export const TransactionCategorizer = () => {
 
 // Visualization components
 const TransactionVisualizations = ({ transactions }: { transactions: Transaction[] }) => {
-  // Filter states
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedMonths, setSelectedMonths] = useState<number>(3); // Default to last 3 months
-  
   // Get all unique categories
   const allCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
   
+  // Filter states - exclude "Inversion" and "Otros" by default
+  const defaultExcludedCategories = ["Inversion", "Otros"];
+  const availableCategories = allCategories.filter(cat => !defaultExcludedCategories.includes(cat));
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(availableCategories);
+  const [selectedMonths, setSelectedMonths] = useState<number>(3); // Default to last 3 months
+  
   // Filter transactions based on selected filters
   const filteredTransactions = transactions.filter(transaction => {
-    // Category filter
+    // Always exclude "Pago de Tarjeta de Crédito"
+    if (transaction.category === "Pago de Tarjeta de Crédito") {
+      return false;
+    }
+    
+    // Category filter - if we have selected categories, only show those
     if (selectedCategories.length > 0 && transaction.category) {
       if (!selectedCategories.includes(transaction.category)) {
         return false;
@@ -383,9 +390,11 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 }
               }}
             >
-              {selectedCategories.length === 0 
-                ? "All categories" 
-                : `${selectedCategories.length} categories selected`
+              {selectedCategories.length === availableCategories.length 
+                ? "All categories (excluding Inversion & Otros)" 
+                : selectedCategories.length === 0
+                  ? "No categories selected"
+                  : `${selectedCategories.length} categories selected`
               }
             </Button>
             <div 
@@ -397,14 +406,16 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 <div className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
                   <Checkbox
                     id="all-categories"
-                    checked={selectedCategories.length === 0}
+                    checked={selectedCategories.length === availableCategories.length}
                     onCheckedChange={(checked) => {
                       if (checked) {
+                        setSelectedCategories(availableCategories);
+                      } else {
                         setSelectedCategories([]);
                       }
                     }}
                   />
-                  <Label htmlFor="all-categories">All categories</Label>
+                  <Label htmlFor="all-categories">All categories (excluding Inversion & Otros)</Label>
                 </div>
                 {allCategories.map(category => (
                   <div key={category} className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
