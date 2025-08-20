@@ -279,8 +279,38 @@ export const TransactionCategorizer = () => {
 
 // Visualization components
 const TransactionVisualizations = ({ transactions }: { transactions: Transaction[] }) => {
+  // Filter states
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedMonths, setSelectedMonths] = useState<number>(3); // Default to last 3 months
+  
+  // Get all unique categories
+  const allCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
+  
+  // Filter transactions based on selected filters
+  const filteredTransactions = transactions.filter(transaction => {
+    // Category filter
+    if (selectedCategories.length > 0 && transaction.category) {
+      if (!selectedCategories.includes(transaction.category)) {
+        return false;
+      }
+    }
+    
+    // Month filter (skip if "All time" is selected)
+    if (selectedMonths < 999) {
+      const transactionDate = new Date(transaction.transaction_timestamp_local);
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - selectedMonths);
+      
+      if (transactionDate < cutoffDate) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+
   // Prepare data for category spending chart
-  const categoryData = transactions.reduce((acc, transaction) => {
+  const categoryData = filteredTransactions.reduce((acc, transaction) => {
     const category = transaction.category || 'Uncategorized';
     acc[category] = (acc[category] || 0) + Math.abs(transaction.amount);
     return acc;
@@ -292,7 +322,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
     .slice(0, 8); // Top 8 categories
 
   // Prepare data for monthly trends
-  const monthlyData = transactions.reduce((acc, transaction) => {
+  const monthlyData = filteredTransactions.reduce((acc, transaction) => {
     const date = new Date(transaction.transaction_timestamp_local);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     acc[monthKey] = (acc[monthKey] || 0) + Math.abs(transaction.amount);
@@ -305,7 +335,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
     .slice(-6); // Last 6 months
 
   // Get unique categories from transactions
-  const uniqueCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))];
+  const uniqueCategories = [...new Set(filteredTransactions.map(t => t.category).filter(Boolean))];
 
   // Calculate current vs last month comparison
   const now = new Date();
@@ -313,7 +343,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
   
-  const currentMonthSpending = transactions
+  const currentMonthSpending = filteredTransactions
     .filter(t => {
       const txDate = new Date(t.transaction_timestamp_local);
       const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
@@ -321,7 +351,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
     })
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-  const lastMonthSpending = transactions
+  const lastMonthSpending = filteredTransactions
     .filter(t => {
       const txDate = new Date(t.transaction_timestamp_local);
       const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
@@ -338,6 +368,97 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
 
   return (
     <div className="space-y-6">
+      {/* Filter Controls */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-card rounded-lg border">
+        <div className="space-y-2">
+          <Label>Categories</Label>
+          <div className="relative">
+            <Button
+              variant="outline"
+              className="w-full justify-between"
+              onClick={() => {
+                const content = document.getElementById('category-dropdown');
+                if (content) {
+                  content.style.display = content.style.display === 'none' ? 'block' : 'none';
+                }
+              }}
+            >
+              {selectedCategories.length === 0 
+                ? "All categories" 
+                : `${selectedCategories.length} categories selected`
+              }
+            </Button>
+            <div 
+              id="category-dropdown"
+              className="absolute top-full left-0 w-full mt-1 bg-popover border rounded-md shadow-md z-50 max-h-48 overflow-y-auto"
+              style={{ display: 'none' }}
+            >
+              <div className="p-2 space-y-2">
+                <div className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
+                  <Checkbox
+                    id="all-categories"
+                    checked={selectedCategories.length === 0}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedCategories([]);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="all-categories">All categories</Label>
+                </div>
+                {allCategories.map(category => (
+                  <div key={category} className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
+                    <Checkbox
+                      id={`category-${category}`}
+                      checked={selectedCategories.includes(category)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedCategories(prev => [...prev, category]);
+                        } else {
+                          setSelectedCategories(prev => prev.filter(c => c !== category));
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`category-${category}`} className="text-sm">{category}</Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          {selectedCategories.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {selectedCategories.map(category => (
+                <div key={category} className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded text-xs">
+                  {category}
+                  <button 
+                    onClick={() => setSelectedCategories(prev => prev.filter(c => c !== category))}
+                    className="ml-1 hover:text-primary/70"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <div className="space-y-2">
+          <Label>Time Period</Label>
+          <Select value={selectedMonths.toString()} onValueChange={(value) => setSelectedMonths(parseInt(value))}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Last 1 month</SelectItem>
+              <SelectItem value="3">Last 3 months</SelectItem>
+              <SelectItem value="6">Last 6 months</SelectItem>
+              <SelectItem value="12">Last 12 months</SelectItem>
+              <SelectItem value="999">All time</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* Summary Stats - Moved to top */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
@@ -347,7 +468,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 style: 'currency',
                 currency: 'CLP',
                 minimumFractionDigits: 0,
-              }).format(transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0))}
+              }).format(filteredTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0))}
             </div>
             <p className="text-muted-foreground text-sm">Total Spending</p>
           </CardContent>
@@ -355,7 +476,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
         
         <Card>
           <CardContent className="p-6">
-            <div className="text-2xl font-bold">{transactions.length}</div>
+            <div className="text-2xl font-bold">{filteredTransactions.length}</div>
             <p className="text-muted-foreground text-sm">Total Transactions</p>
           </CardContent>
         </Card>
@@ -370,11 +491,11 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
         <Card>
           <CardContent className="p-6">
             <div className="text-2xl font-bold">
-              {transactions.length > 0 ? new Intl.NumberFormat('es-CL', {
+              {filteredTransactions.length > 0 ? new Intl.NumberFormat('es-CL', {
                 style: 'currency',
                 currency: 'CLP',
                 minimumFractionDigits: 0,
-              }).format(transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0) / transactions.length) : '$0'}
+              }).format(filteredTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0) / filteredTransactions.length) : '$0'}
             </div>
             <p className="text-muted-foreground text-sm">Average Transaction</p>
           </CardContent>
