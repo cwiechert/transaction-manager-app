@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Loader2 } from "lucide-react";
@@ -24,12 +25,14 @@ interface Transaction {
 
 export const TransactionCategorizer = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchUncategorizedTransactions();
+    fetchCategories();
   }, []);
 
   const fetchUncategorizedTransactions = async () => {
@@ -50,6 +53,22 @@ export const TransactionCategorizer = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categorization_rules')
+        .select('category')
+        .order('category');
+
+      if (error) throw error;
+      
+      const uniqueCategories = [...new Set(data?.map(item => item.category) || [])];
+      setCategories(uniqueCategories);
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
     }
   };
 
@@ -105,8 +124,9 @@ export const TransactionCategorizer = () => {
         });
       }
 
-      // Refresh the list
+      // Refresh the lists
       await fetchUncategorizedTransactions();
+      await fetchCategories();
     } catch (error) {
       toast({
         title: "Error",
@@ -144,6 +164,7 @@ export const TransactionCategorizer = () => {
             <TransactionCard
               key={transaction.Id}
               transaction={transaction}
+              categories={categories}
               onUpdate={updateTransaction}
               isUpdating={updating === transaction.Id}
             />
@@ -166,12 +187,15 @@ export const TransactionCategorizer = () => {
 
 interface TransactionCardProps {
   transaction: Transaction;
+  categories: string[];
   onUpdate: (id: string, category: string, description: string, applyToAll: boolean, paymentReason: string) => Promise<void>;
   isUpdating: boolean;
 }
 
-const TransactionCard = ({ transaction, onUpdate, isUpdating }: TransactionCardProps) => {
+const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: TransactionCardProps) => {
   const [category, setCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [description, setDescription] = useState(transaction.description || "");
   const [applyToAll, setApplyToAll] = useState(false);
 
@@ -184,11 +208,23 @@ const TransactionCard = ({ transaction, onUpdate, isUpdating }: TransactionCardP
     transaction.transferation_type : 
     transaction.payment_reason;
 
+  const handleCategoryChange = (value: string) => {
+    if (value === "add_new") {
+      setShowCustomInput(true);
+      setCategory("");
+    } else {
+      setShowCustomInput(false);
+      setCategory(value);
+      setCustomCategory("");
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!category.trim()) return;
+    const finalCategory = showCustomInput ? customCategory.trim() : category.trim();
+    if (!finalCategory) return;
     
-    onUpdate(transaction.Id, category.trim(), description.trim(), applyToAll, effectivePaymentReason);
+    onUpdate(transaction.Id, finalCategory, description.trim(), applyToAll, effectivePaymentReason);
   };
 
   const formatAmount = (amount: number, currency: string) => {
@@ -205,6 +241,8 @@ const TransactionCard = ({ transaction, onUpdate, isUpdating }: TransactionCardP
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
       }).format(amount);
     } else {
       // Fallback for unknown currencies
@@ -249,14 +287,32 @@ const TransactionCard = ({ transaction, onUpdate, isUpdating }: TransactionCardP
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor={`category-${transaction.Id}`}>Category *</Label>
-              <Input
-                id={`category-${transaction.Id}`}
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g., Food, Transport, Shopping"
-                required
-                disabled={isUpdating}
-              />
+              {showCustomInput ? (
+                <Input
+                  id={`custom-category-${transaction.Id}`}
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  placeholder="Enter new category name"
+                  required
+                  disabled={isUpdating}
+                />
+              ) : (
+                <Select onValueChange={handleCategoryChange} disabled={isUpdating}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="add_new">
+                      <span className="font-medium">+ Add new category</span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor={`description-${transaction.Id}`}>Description (optional)</Label>
@@ -286,7 +342,7 @@ const TransactionCard = ({ transaction, onUpdate, isUpdating }: TransactionCardP
 
           <Button 
             type="submit" 
-            disabled={!category.trim() || isUpdating}
+            disabled={(!category.trim() && !customCategory.trim()) || isUpdating}
             className="w-full md:w-auto"
           >
             {isUpdating ? (
