@@ -21,6 +21,7 @@ export type Database = {
           id: string
           payment_reason: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           category: string
@@ -28,6 +29,7 @@ export type Database = {
           id?: string
           payment_reason: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           category?: string
@@ -35,6 +37,7 @@ export type Database = {
           id?: string
           payment_reason?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -54,6 +57,7 @@ export type Database = {
           transferation_destination: string | null
           transferation_source: string | null
           transferation_type: string | null
+          user_id: string | null
         }
         Insert: {
           amount?: number | null
@@ -70,6 +74,7 @@ export type Database = {
           transferation_destination?: string | null
           transferation_source?: string | null
           transferation_type?: string | null
+          user_id?: string | null
         }
         Update: {
           amount?: number | null
@@ -86,6 +91,7 @@ export type Database = {
           transferation_destination?: string | null
           transferation_source?: string | null
           transferation_type?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
