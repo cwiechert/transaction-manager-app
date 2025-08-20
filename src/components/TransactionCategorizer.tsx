@@ -7,9 +7,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Loader2 } from "lucide-react";
+import { Loader2, Edit } from "lucide-react";
 
 interface Transaction {
   Id: string;
@@ -26,15 +27,18 @@ interface Transaction {
 
 export const TransactionCategorizer = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [transactionLimit, setTransactionLimit] = useState(10);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchUncategorizedTransactions();
+    fetchRecentTransactions();
     fetchCategories();
-  }, []);
+  }, [transactionLimit]);
 
   const fetchUncategorizedTransactions = async () => {
     try {
@@ -54,6 +58,21 @@ export const TransactionCategorizer = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRecentTransactions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('Id, payment_reason, amount, currency, transaction_timestamp_local, category, description, transaction_type, transferation_type, transferation_destination')
+        .order('transaction_timestamp_local', { ascending: false })
+        .limit(transactionLimit);
+
+      if (error) throw error;
+      setRecentTransactions(data || []);
+    } catch (error) {
+      console.error('Failed to fetch recent transactions:', error);
     }
   };
 
@@ -128,6 +147,7 @@ export const TransactionCategorizer = () => {
 
       // Refresh the lists
       await fetchUncategorizedTransactions();
+      await fetchRecentTransactions();
       await fetchCategories();
     } catch (error) {
       toast({
@@ -153,35 +173,79 @@ export const TransactionCategorizer = () => {
       <div className="max-w-4xl mx-auto">
         <div className="mb-8 flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Transaction Categorizer</h1>
-            <p className="text-muted-foreground">
-              {transactions.length} uncategorized transactions found
-            </p>
+            <h1 className="text-3xl font-bold text-foreground mb-2">Transaction Manager</h1>
           </div>
           <ThemeToggle />
         </div>
 
-        <div className="space-y-4">
-          {transactions.map((transaction) => (
-            <TransactionCard
-              key={transaction.Id}
-              transaction={transaction}
-              categories={categories}
-              onUpdate={updateTransaction}
-              isUpdating={updating === transaction.Id}
-            />
-          ))}
+        <Tabs defaultValue="categorize" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="categorize">Categorize Transactions</TabsTrigger>
+            <TabsTrigger value="edit">Edit Recent Transactions</TabsTrigger>
+          </TabsList>
           
-          {transactions.length === 0 && (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">
-                  🎉 All transactions are categorized!
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+          <TabsContent value="categorize" className="space-y-4">
+            <div className="mb-4">
+              <p className="text-muted-foreground">
+                {transactions.length} uncategorized transactions found
+              </p>
+            </div>
+            
+            {transactions.map((transaction) => (
+              <TransactionCard
+                key={transaction.Id}
+                transaction={transaction}
+                categories={categories}
+                onUpdate={updateTransaction}
+                isUpdating={updating === transaction.Id}
+                showApplyToAll={true}
+              />
+            ))}
+            
+            {transactions.length === 0 && (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">
+                    🎉 All transactions are categorized!
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="edit" className="space-y-4">
+            <div className="mb-4 flex justify-between items-center">
+              <p className="text-muted-foreground">
+                Showing last {transactionLimit} transactions
+              </p>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="limit">Show:</Label>
+                <Select value={transactionLimit.toString()} onValueChange={(value) => setTransactionLimit(parseInt(value))}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {recentTransactions.map((transaction) => (
+              <TransactionCard
+                key={transaction.Id}
+                transaction={transaction}
+                categories={categories}
+                onUpdate={updateTransaction}
+                isUpdating={updating === transaction.Id}
+                showApplyToAll={false}
+              />
+            ))}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
@@ -192,10 +256,11 @@ interface TransactionCardProps {
   categories: string[];
   onUpdate: (id: string, category: string, description: string, applyToAll: boolean, paymentReason: string) => Promise<void>;
   isUpdating: boolean;
+  showApplyToAll: boolean;
 }
 
-const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: TransactionCardProps) => {
-  const [category, setCategory] = useState("");
+const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showApplyToAll }: TransactionCardProps) => {
+  const [category, setCategory] = useState(transaction.category || "");
   const [customCategory, setCustomCategory] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [description, setDescription] = useState(transaction.description || "");
@@ -291,6 +356,11 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: Tran
             <p className="text-sm text-muted-foreground">
               {formatDate(transaction.transaction_timestamp_local)}
             </p>
+            {transaction.category && (
+              <span className="inline-block mt-1 px-2 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full">
+                {transaction.category}
+              </span>
+            )}
           </div>
           <div className="text-right ml-4">
             <div className="flex items-baseline justify-end gap-2">
@@ -319,7 +389,7 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: Tran
                   disabled={isUpdating}
                 />
               ) : (
-                <Select onValueChange={handleCategoryChange} disabled={isUpdating}>
+                <Select value={category} onValueChange={handleCategoryChange} disabled={isUpdating}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
@@ -337,7 +407,7 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: Tran
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`description-${transaction.Id}`}>Description (optional)</Label>
+              <Label htmlFor={`description-${transaction.Id}`}>Description</Label>
               <Input
                 id={`description-${transaction.Id}`}
                 value={description}
@@ -348,7 +418,7 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: Tran
             </div>
           </div>
 
-          {!isTransferToThird && (
+          {showApplyToAll && !isTransferToThird && (
             <div className="flex items-center space-x-2">
               <Checkbox
                 id={`apply-all-${transaction.Id}`}
@@ -373,7 +443,10 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: Tran
                 Updating...
               </>
             ) : (
-              'Save Category'
+              <>
+                <Edit className="mr-2 h-4 w-4" />
+                Update Transaction
+              </>
             )}
           </Button>
         </form>
