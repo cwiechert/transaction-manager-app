@@ -288,6 +288,19 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   const [selectedCategories, setSelectedCategories] = useState<string[]>(availableCategories);
   const [selectedMonths, setSelectedMonths] = useState<number>(3); // Default to last 3 months
   const [categoryChartView, setCategoryChartView] = useState<'filtered' | 'current'>('filtered');
+  const [usdToClp, setUsdToClp] = useState<number>(900);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=CLP');
+        const data = await res.json();
+        if (data?.rates?.CLP) setUsdToClp(data.rates.CLP);
+      } catch (e) {
+        console.warn('Failed to fetch USD->CLP rate, using fallback 900', e);
+      }
+    })();
+  }, []);
   
   // Filter transactions based on selected filters
   const filteredTransactions = transactions.filter(transaction => {
@@ -1144,7 +1157,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
             All transactions from {(() => {
               const now = new Date();
               return now.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-            })()} sorted by date (newest first)
+            })()} sorted by amount (CLP, converted when needed)
           </p>
         </CardHeader>
         <CardContent>
@@ -1159,7 +1172,10 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
                 return txMonth === currentMonth;
               })
-              .sort((a, b) => new Date(b.transaction_timestamp_local).getTime() - new Date(a.transaction_timestamp_local).getTime());
+              .sort((a, b) => {
+                const toCLP = (t: Transaction) => Math.abs(t.currency === 'USD' ? t.amount * usdToClp : t.amount);
+                return toCLP(b) - toCLP(a);
+              });
 
             if (currentMonthTransactions.length === 0) {
               return (
@@ -1206,10 +1222,10 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                           style: 'currency',
                           currency: 'CLP',
                           minimumFractionDigits: 0,
-                        }).format(Math.abs(transaction.amount))}
+                        }).format(Math.abs(transaction.currency === 'USD' ? transaction.amount * usdToClp : transaction.amount))}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {transaction.currency}
+                        CLP
                       </div>
                     </div>
                   </div>
