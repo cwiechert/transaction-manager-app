@@ -11,7 +11,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Loader2, Edit, BarChart3, PieChart, TrendingUp, LogOut } from "lucide-react";
+import { Loader2, Edit, BarChart3, PieChart, TrendingUp, LogOut, Check, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Tooltip } from 'recharts';
 
 interface Transaction {
@@ -460,22 +470,60 @@ const CategorizationRulesManager = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-card rounded-lg border">
         <div className="space-y-2">
           <Label htmlFor="payment-reason-filter">Filter by Payment Reason</Label>
-          <Select
-            value={filters.payment_reason || 'all'}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, payment_reason: value === 'all' ? '' : value }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="All payment reasons" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All payment reasons</SelectItem>
-              {uniquePaymentReasons.map((reason) => (
-                <SelectItem key={reason} value={reason}>
-                  {reason}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between"
+              >
+                {filters.payment_reason || "All payment reasons"}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <Command>
+                <CommandInput placeholder="Search payment reasons..." />
+                <CommandList>
+                  <CommandEmpty>No payment reason found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="all"
+                      onSelect={() => setFilters(prev => ({ ...prev, payment_reason: '' }))}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          !filters.payment_reason ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      All payment reasons
+                    </CommandItem>
+                    {uniquePaymentReasons.map((reason) => (
+                      <CommandItem
+                        key={reason}
+                        value={reason}
+                        onSelect={(currentValue) => {
+                          setFilters(prev => ({ 
+                            ...prev, 
+                            payment_reason: currentValue === filters.payment_reason ? '' : currentValue
+                          }))
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            filters.payment_reason === reason ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {reason}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="space-y-2">
           <Label htmlFor="category-filter">Filter by Category</Label>
