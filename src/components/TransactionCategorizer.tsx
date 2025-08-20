@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Loader2, Edit } from "lucide-react";
+import { Loader2, Edit, BarChart, PieChart, TrendingUp } from "lucide-react";
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Tooltip } from 'recharts';
 
 interface Transaction {
   Id: string;
@@ -28,6 +29,7 @@ interface Transaction {
 export const TransactionCategorizer = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -37,6 +39,7 @@ export const TransactionCategorizer = () => {
   useEffect(() => {
     fetchUncategorizedTransactions();
     fetchRecentTransactions();
+    fetchAllTransactions();
     fetchCategories();
   }, [transactionLimit]);
 
@@ -74,6 +77,22 @@ export const TransactionCategorizer = () => {
       setRecentTransactions(data || []);
     } catch (error) {
       console.error('Failed to fetch recent transactions:', error);
+    }
+  };
+
+  const fetchAllTransactions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('Id, payment_reason, amount, currency, transaction_timestamp_local, category, description, transaction_type, transferation_type, transferation_destination')
+        .not('category', 'is', null)
+        .neq('category', 'Pago de Tarjeta de Crédito')
+        .order('transaction_timestamp_local', { ascending: false });
+
+      if (error) throw error;
+      setAllTransactions(data || []);
+    } catch (error) {
+      console.error('Failed to fetch all transactions:', error);
     }
   };
 
@@ -149,6 +168,7 @@ export const TransactionCategorizer = () => {
       // Refresh the lists
       await fetchUncategorizedTransactions();
       await fetchRecentTransactions();
+      await fetchAllTransactions();
       await fetchCategories();
     } catch (error) {
       toast({
@@ -180,9 +200,10 @@ export const TransactionCategorizer = () => {
         </div>
 
         <Tabs defaultValue="categorize" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="categorize">Categorize Transactions</TabsTrigger>
             <TabsTrigger value="edit">Edit Recent Transactions</TabsTrigger>
+            <TabsTrigger value="visualizations">Visualizations</TabsTrigger>
           </TabsList>
           
           <TabsContent value="categorize" className="space-y-4">
@@ -246,7 +267,216 @@ export const TransactionCategorizer = () => {
               />
             ))}
           </TabsContent>
+
+          <TabsContent value="visualizations" className="space-y-6">
+            <TransactionVisualizations transactions={allTransactions} />
+          </TabsContent>
         </Tabs>
+      </div>
+    </div>
+  );
+};
+
+// Visualization components
+const TransactionVisualizations = ({ transactions }: { transactions: Transaction[] }) => {
+  // Prepare data for category spending chart
+  const categoryData = transactions.reduce((acc, transaction) => {
+    const category = transaction.category || 'Uncategorized';
+    acc[category] = (acc[category] || 0) + Math.abs(transaction.amount);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const categoryChartData = Object.entries(categoryData)
+    .map(([category, amount]) => ({ category, amount }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 8); // Top 8 categories
+
+  // Prepare data for monthly trends
+  const monthlyData = transactions.reduce((acc, transaction) => {
+    const date = new Date(transaction.transaction_timestamp_local);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    acc[monthKey] = (acc[monthKey] || 0) + Math.abs(transaction.amount);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const monthlyChartData = Object.entries(monthlyData)
+    .map(([month, amount]) => ({ month, amount }))
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .slice(-6); // Last 6 months
+
+  // Get unique categories from transactions
+  const uniqueCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))];
+
+  // Colors for charts
+  const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0', '#ffb347', '#87ceeb'];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Category Spending Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PieChart className="h-5 w-5" />
+              Spending by Category
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsPieChart>
+                <Pie
+                  data={categoryChartData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="amount"
+                  label={({ category, percent }) => `${category} (${(percent * 100).toFixed(0)}%)`}
+                >
+                  {categoryChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => [
+                    new Intl.NumberFormat('es-CL', {
+                      style: 'currency',
+                      currency: 'CLP',
+                      minimumFractionDigits: 0,
+                    }).format(value),
+                    'Amount'
+                  ]}
+                />
+              </RechartsPieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Monthly Spending Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Monthly Spending Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={monthlyChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis 
+                  tickFormatter={(value) => 
+                    new Intl.NumberFormat('es-CL', {
+                      style: 'currency',
+                      currency: 'CLP',
+                      minimumFractionDigits: 0,
+                      notation: 'compact'
+                    }).format(value)
+                  }
+                />
+                <Tooltip
+                  formatter={(value: number) => [
+                    new Intl.NumberFormat('es-CL', {
+                      style: 'currency',
+                      currency: 'CLP',
+                      minimumFractionDigits: 0,
+                    }).format(value),
+                    'Amount'
+                  ]}
+                />
+                <Line type="monotone" dataKey="amount" stroke="#8884d8" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Category Comparison Bar Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart className="h-5 w-5" />
+            Top Categories Comparison
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={400}>
+            <RechartsBarChart data={categoryChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="category" 
+                angle={-45}
+                textAnchor="end"
+                height={100}
+              />
+              <YAxis 
+                tickFormatter={(value) => 
+                  new Intl.NumberFormat('es-CL', {
+                    style: 'currency',
+                    currency: 'CLP',
+                    minimumFractionDigits: 0,
+                    notation: 'compact'
+                  }).format(value)
+                }
+              />
+              <Tooltip
+                formatter={(value: number) => [
+                  new Intl.NumberFormat('es-CL', {
+                    style: 'currency',
+                    currency: 'CLP',
+                    minimumFractionDigits: 0,
+                  }).format(value),
+                  'Amount'
+                ]}
+              />
+              <Bar dataKey="amount" fill="#8884d8" />
+            </RechartsBarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">
+              {new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+              }).format(transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0))}
+            </div>
+            <p className="text-muted-foreground text-sm">Total Spending</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">{transactions.length}</div>
+            <p className="text-muted-foreground text-sm">Total Transactions</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">{uniqueCategories.length}</div>
+            <p className="text-muted-foreground text-sm">Categories Used</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">
+              {transactions.length > 0 ? new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+              }).format(transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0) / transactions.length) : '$0'}
+            </div>
+            <p className="text-muted-foreground text-sm">Average Transaction</p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
