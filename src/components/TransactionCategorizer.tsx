@@ -540,50 +540,36 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={400}>
-              <RechartsBarChart
-                data={categoryChartData}
-                layout="horizontal"
-                margin={{ top: 20, right: 100, left: 80, bottom: 20 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  type="number"
-                  tickFormatter={(value) => 
-                    new Intl.NumberFormat('es-CL', {
-                      style: 'currency',
-                      currency: 'CLP',
-                      minimumFractionDigits: 0,
-                      notation: 'compact'
-                    }).format(value)
-                  }
-                />
-                <YAxis 
-                  type="category"
-                  dataKey="category"
-                  width={150}
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip
-                  formatter={(value: number, name, props) => {
-                    const total = categoryChartData.reduce((sum, item) => sum + item.amount, 0);
-                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
-                    return [
-                      `${new Intl.NumberFormat('es-CL', {
+            <div className="space-y-2">
+              {categoryChartData.map((item, index) => {
+                const total = categoryChartData.reduce((sum, cat) => sum + cat.amount, 0);
+                const percentage = total > 0 ? ((item.amount / total) * 100) : 0;
+                return (
+                  <div key={item.category} className="flex items-center gap-4">
+                    <div className="w-32 text-sm font-medium truncate">{item.category}</div>
+                    <div className="flex-1 relative">
+                      <div className="w-full bg-muted h-8 rounded-md overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-300" 
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-medium text-primary-foreground mix-blend-difference">
+                        {percentage.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div className="w-24 text-right text-sm font-medium">
+                      {new Intl.NumberFormat('es-CL', {
                         style: 'currency',
                         currency: 'CLP',
                         minimumFractionDigits: 0,
-                      }).format(value)} (${percentage}%)`,
-                      'Amount'
-                    ];
-                  }}
-                />
-                <Bar 
-                  dataKey="amount" 
-                  fill="#8884d8"
-                />
-              </RechartsBarChart>
-            </ResponsiveContainer>
+                        notation: 'compact'
+                      }).format(item.amount)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
 
@@ -627,72 +613,157 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
         </Card>
       </div>
 
-      {/* Monthly Category Comparison */}
+      {/* Category Spending Heatmap */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart className="h-5 w-5" />
-            Monthly Spending by Category
+            Category Spending Heatmap
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <RechartsBarChart 
-              data={(() => {
-                // Create monthly data structure with categories
-                const monthlyByCategory = filteredTransactions.reduce((acc, transaction) => {
-                  const date = new Date(transaction.transaction_timestamp_local);
-                  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                  const category = transaction.category || 'Uncategorized';
-                  
-                  if (!acc[monthKey]) {
-                    acc[monthKey] = { month: monthKey };
-                  }
-                  
-                  acc[monthKey][category] = (acc[monthKey][category] || 0) + Math.abs(transaction.amount);
-                  return acc;
-                }, {} as Record<string, any>);
+          {(() => {
+            // Create heatmap data structure
+            const heatmapData = filteredTransactions.reduce((acc, transaction) => {
+              const date = new Date(transaction.transaction_timestamp_local);
+              const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+              const category = transaction.category || 'Uncategorized';
+              
+              if (!acc[category]) {
+                acc[category] = {};
+              }
+              
+              acc[category][monthKey] = (acc[category][monthKey] || 0) + Math.abs(transaction.amount);
+              return acc;
+            }, {} as Record<string, Record<string, number>>);
 
-                return Object.values(monthlyByCategory)
-                  .sort((a: any, b: any) => a.month.localeCompare(b.month))
-                  .slice(-6); // Last 6 months
-              })()}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis 
-                tickFormatter={(value) => 
-                  new Intl.NumberFormat('es-CL', {
-                    style: 'currency',
-                    currency: 'CLP',
-                    minimumFractionDigits: 0,
-                    notation: 'compact'
-                  }).format(value)
-                }
-              />
-              <Tooltip
-                formatter={(value: number) => [
-                  new Intl.NumberFormat('es-CL', {
-                    style: 'currency',
-                    currency: 'CLP',
-                    minimumFractionDigits: 0,
-                  }).format(value),
-                  'Amount'
-                ]}
-              />
-              <Legend />
-              {/* Generate bars for each category */}
-              {uniqueCategories.slice(0, 8).map((category, index) => (
-                <Bar 
-                  key={category}
-                  dataKey={category} 
-                  stackId="categories"
-                  fill={colors[index % colors.length]} 
-                />
-              ))}
-            </RechartsBarChart>
-          </ResponsiveContainer>
+            // Get all months in the data, sorted
+            const allMonths = [...new Set(
+              filteredTransactions.map(t => {
+                const date = new Date(t.transaction_timestamp_local);
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+              })
+            )]
+            .sort()
+            .slice(-12); // Last 12 months
+
+            // Get all categories that have data
+            const categoriesWithData = Object.keys(heatmapData)
+              .filter(category => Object.keys(heatmapData[category]).length > 0)
+              .sort();
+
+            // Find max value for color scaling
+            const maxValue = Math.max(
+              ...Object.values(heatmapData).flatMap(monthData => 
+                Object.values(monthData)
+              )
+            );
+
+            const formatMonth = (monthKey: string) => {
+              const [year, month] = monthKey.split('-');
+              const date = new Date(parseInt(year), parseInt(month) - 1);
+              return date.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' });
+            };
+
+            const getColorIntensity = (value: number) => {
+              if (!value || maxValue === 0) return 0;
+              return Math.min(value / maxValue, 1);
+            };
+
+            const formatCurrency = (value: number) => {
+              return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+                notation: 'compact'
+              }).format(value);
+            };
+
+            return (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="sticky left-0 bg-background border border-border p-2 text-left font-medium min-w-32">
+                        Category
+                      </th>
+                      {allMonths.map(month => (
+                        <th key={month} className="border border-border p-2 text-center font-medium min-w-20 text-xs">
+                          {formatMonth(month)}
+                        </th>
+                      ))}
+                      <th className="border border-border p-2 text-center font-medium min-w-20 text-xs">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categoriesWithData.map(category => {
+                      const categoryTotal = Object.values(heatmapData[category] || {})
+                        .reduce((sum, val) => sum + val, 0);
+                      
+                      return (
+                        <tr key={category}>
+                          <td className="sticky left-0 bg-background border border-border p-2 font-medium text-sm">
+                            {category}
+                          </td>
+                          {allMonths.map(month => {
+                            const value = heatmapData[category]?.[month] || 0;
+                            const intensity = getColorIntensity(value);
+                            
+                            return (
+                              <td 
+                                key={month} 
+                                className="border border-border p-1 text-center text-xs relative"
+                                style={{
+                                  backgroundColor: value > 0 
+                                    ? `hsl(var(--primary) / ${0.1 + intensity * 0.7})` 
+                                    : 'transparent'
+                                }}
+                              >
+                                {value > 0 && (
+                                  <div className="font-medium">
+                                    {formatCurrency(value)}
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                          <td className="border border-border p-1 text-center text-xs font-bold bg-muted">
+                            {formatCurrency(categoryTotal)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="bg-muted">
+                      <td className="sticky left-0 bg-muted border border-border p-2 font-bold text-sm">
+                        Total
+                      </td>
+                      {allMonths.map(month => {
+                        const monthTotal = categoriesWithData.reduce((sum, category) => {
+                          return sum + (heatmapData[category]?.[month] || 0);
+                        }, 0);
+                        
+                        return (
+                          <td key={month} className="border border-border p-1 text-center text-xs font-bold">
+                            {formatCurrency(monthTotal)}
+                          </td>
+                        );
+                      })}
+                      <td className="border border-border p-1 text-center text-xs font-bold">
+                        {formatCurrency(
+                          categoriesWithData.reduce((sum, category) => {
+                            return sum + Object.values(heatmapData[category] || {})
+                              .reduce((catSum, val) => catSum + val, 0);
+                          }, 0)
+                        )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>
