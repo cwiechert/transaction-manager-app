@@ -1247,7 +1247,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                         )}
                       </div>
                       <h4 className="font-medium text-sm truncate">
-                        {transaction.payment_reason}
+                        {transaction.payment_reason || `Transferencia: ${transaction.transferation_destination || 'N/A'}`}
                       </h4>
                       <p className="text-xs text-muted-foreground">
                         {new Date(transaction.transaction_timestamp_local).toLocaleDateString('es-CL', {
@@ -1368,7 +1368,7 @@ const CategoryAnalysis = ({ transactions, usdToClp }: { transactions: Transactio
             const tableData = filteredTransactions.reduce((acc, transaction) => {
               const date = new Date(transaction.transaction_timestamp_local);
               const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-              const paymentReason = transaction.payment_reason || 'No payment reason';
+              const paymentReason = transaction.payment_reason || `Transferencia: ${transaction.transferation_destination || 'N/A'}`;
               
               if (!acc[paymentReason]) {
                 acc[paymentReason] = {};
