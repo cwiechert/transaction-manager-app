@@ -191,7 +191,7 @@ export const TransactionCategorizer = () => {
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">Transaction Manager</h1>
@@ -307,11 +307,97 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   // Get unique categories from transactions
   const uniqueCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))];
 
+  // Calculate current vs last month comparison
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+  
+  const currentMonthSpending = transactions
+    .filter(t => {
+      const txDate = new Date(t.transaction_timestamp_local);
+      const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+      return txMonth === currentMonth;
+    })
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  const lastMonthSpending = transactions
+    .filter(t => {
+      const txDate = new Date(t.transaction_timestamp_local);
+      const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+      return txMonth === lastMonth;
+    })
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  const monthOverMonthChange = lastMonthSpending > 0 
+    ? ((currentMonthSpending - lastMonthSpending) / lastMonthSpending) * 100 
+    : 0;
+
   // Colors for charts
   const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0', '#ffb347', '#87ceeb'];
 
   return (
     <div className="space-y-6">
+      {/* Summary Stats - Moved to top */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">
+              {new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+              }).format(transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0))}
+            </div>
+            <p className="text-muted-foreground text-sm">Total Spending</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">{transactions.length}</div>
+            <p className="text-muted-foreground text-sm">Total Transactions</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">{uniqueCategories.length}</div>
+            <p className="text-muted-foreground text-sm">Categories Used</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">
+              {transactions.length > 0 ? new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+              }).format(transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0) / transactions.length) : '$0'}
+            </div>
+            <p className="text-muted-foreground text-sm">Average Transaction</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className={`text-2xl font-bold ${monthOverMonthChange >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+              {monthOverMonthChange >= 0 ? '+' : ''}{monthOverMonthChange.toFixed(1)}%
+            </div>
+            <p className="text-muted-foreground text-sm">vs Last Month</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Current: {new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+                notation: 'compact'
+              }).format(currentMonthSpending)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Category Spending Pie Chart */}
         <Card>
@@ -435,49 +521,6 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
           </ResponsiveContainer>
         </CardContent>
       </Card>
-
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold">
-              {new Intl.NumberFormat('es-CL', {
-                style: 'currency',
-                currency: 'CLP',
-                minimumFractionDigits: 0,
-              }).format(transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0))}
-            </div>
-            <p className="text-muted-foreground text-sm">Total Spending</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold">{transactions.length}</div>
-            <p className="text-muted-foreground text-sm">Total Transactions</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold">{uniqueCategories.length}</div>
-            <p className="text-muted-foreground text-sm">Categories Used</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold">
-              {transactions.length > 0 ? new Intl.NumberFormat('es-CL', {
-                style: 'currency',
-                currency: 'CLP',
-                minimumFractionDigits: 0,
-              }).format(transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0) / transactions.length) : '$0'}
-            </div>
-            <p className="text-muted-foreground text-sm">Average Transaction</p>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 };
