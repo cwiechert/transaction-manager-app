@@ -21,6 +21,7 @@ interface Transaction {
   description: string | null;
   transaction_type: string | null;
   transferation_type: string | null;
+  transferation_destination: string | null;
 }
 
 export const TransactionCategorizer = () => {
@@ -39,7 +40,7 @@ export const TransactionCategorizer = () => {
     try {
       const { data, error } = await supabase
         .from('transactions')
-        .select('Id, payment_reason, amount, currency, transaction_timestamp_local, category, description, transaction_type, transferation_type')
+        .select('Id, payment_reason, amount, currency, transaction_timestamp_local, category, description, transaction_type, transferation_type, transferation_destination')
         .is('category', null)
         .order('transaction_timestamp_local', { ascending: false });
 
@@ -207,6 +208,19 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: Tran
     transaction.transferation_type : 
     transaction.payment_reason;
 
+  // Get the display title for the transaction
+  const getDisplayTitle = () => {
+    if (transaction.transaction_type === "Transferencia") {
+      if (transaction.transferation_type === "Transferencia a Terceros") {
+        return transaction.transferation_destination || transaction.transferation_type;
+      }
+      return transaction.transferation_type || transaction.payment_reason;
+    }
+    return transaction.payment_reason;
+  };
+
+  const displayTitle = getDisplayTitle();
+
   const handleCategoryChange = (value: string) => {
     if (value === "add_new") {
       setShowCustomInput(true);
@@ -268,7 +282,7 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: Tran
         <CardTitle className="flex justify-between items-start">
           <div className="flex-1 min-w-0">
             <p className="text-lg font-semibold text-foreground truncate">
-              {effectivePaymentReason}
+              {displayTitle}
             </p>
             <p className="text-sm text-muted-foreground">
               {formatDate(transaction.transaction_timestamp_local)}

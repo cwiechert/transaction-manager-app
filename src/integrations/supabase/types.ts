@@ -51,7 +51,7 @@ export type Database = {
           sender: string | null
           transaction_timestamp_local: string | null
           transaction_type: string | null
-          transferation_destination: Json | null
+          transferation_destination: string | null
           transferation_source: string | null
           transferation_type: string | null
         }
@@ -67,7 +67,7 @@ export type Database = {
           sender?: string | null
           transaction_timestamp_local?: string | null
           transaction_type?: string | null
-          transferation_destination?: Json | null
+          transferation_destination?: string | null
           transferation_source?: string | null
           transferation_type?: string | null
         }
@@ -83,7 +83,7 @@ export type Database = {
           sender?: string | null
           transaction_timestamp_local?: string | null
           transaction_type?: string | null
-          transferation_destination?: Json | null
+          transferation_destination?: string | null
           transferation_source?: string | null
           transferation_type?: string | null
         }
