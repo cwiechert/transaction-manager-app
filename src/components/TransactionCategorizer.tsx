@@ -66,6 +66,7 @@ export const TransactionCategorizer = () => {
       const { data, error } = await supabase
         .from('transactions')
         .select('Id, payment_reason, amount, currency, transaction_timestamp_local, category, description, transaction_type, transferation_type, transferation_destination')
+        .neq('category', 'Pago de Tarjeta de Crédito')
         .order('transaction_timestamp_local', { ascending: false })
         .limit(transactionLimit);
 
