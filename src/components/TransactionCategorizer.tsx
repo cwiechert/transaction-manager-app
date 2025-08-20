@@ -536,23 +536,124 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
           <CardContent className="p-6">
             <div className="text-2xl font-bold">
               {(() => {
-                const topCategory = categoryChartData[0];
-                return topCategory ? topCategory.category : 'N/A';
+                // Get current month top category
+                const currentMonthTxs = filteredTransactions.filter(t => {
+                  const txDate = new Date(t.transaction_timestamp_local);
+                  const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                  return txMonth === currentMonth;
+                });
+                
+                const currentMonthCategories = currentMonthTxs.reduce((acc, t) => {
+                  const category = t.category || 'Uncategorized';
+                  acc[category] = (acc[category] || 0) + Math.abs(t.amount);
+                  return acc;
+                }, {} as Record<string, number>);
+                
+                const currentTopCategory = Object.entries(currentMonthCategories)
+                  .sort(([,a], [,b]) => b - a)[0];
+                
+                return currentTopCategory ? currentTopCategory[0] : 'N/A';
               })()}
             </div>
-            <p className="text-muted-foreground text-sm">Top Category</p>
-            <div className="mt-2 p-2 bg-muted/50 rounded-md text-center">
-              <div className="text-xs text-muted-foreground">Amount</div>
-              <div className="text-sm font-medium">
-                {(() => {
-                  const topCategory = categoryChartData[0];
-                  return topCategory ? new Intl.NumberFormat('es-CL', {
-                    style: 'currency',
-                    currency: 'CLP',
-                    minimumFractionDigits: 0,
-                    notation: 'compact'
-                  }).format(topCategory.amount) : '$0';
-                })()}
+            <p className="text-muted-foreground text-sm">Top Category (Current)</p>
+            <div className="flex items-center justify-between mt-2 p-2 bg-muted/50 rounded-md">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Previous</div>
+                <div className="text-xs font-medium truncate max-w-16">
+                  {(() => {
+                    // Get previous month top category
+                    const lastMonthTxs = filteredTransactions.filter(t => {
+                      const txDate = new Date(t.transaction_timestamp_local);
+                      const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                      return txMonth === lastMonth;
+                    });
+                    
+                    const lastMonthCategories = lastMonthTxs.reduce((acc, t) => {
+                      const category = t.category || 'Uncategorized';
+                      acc[category] = (acc[category] || 0) + Math.abs(t.amount);
+                      return acc;
+                    }, {} as Record<string, number>);
+                    
+                    const lastTopCategory = Object.entries(lastMonthCategories)
+                      .sort(([,a], [,b]) => b - a)[0];
+                    
+                    return lastTopCategory ? lastTopCategory[0] : 'N/A';
+                  })()}
+                </div>
+                <div className="text-xs font-medium">
+                  {(() => {
+                    const lastMonthTxs = filteredTransactions.filter(t => {
+                      const txDate = new Date(t.transaction_timestamp_local);
+                      const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                      return txMonth === lastMonth;
+                    });
+                    
+                    const lastMonthCategories = lastMonthTxs.reduce((acc, t) => {
+                      const category = t.category || 'Uncategorized';
+                      acc[category] = (acc[category] || 0) + Math.abs(t.amount);
+                      return acc;
+                    }, {} as Record<string, number>);
+                    
+                    const lastTopCategory = Object.entries(lastMonthCategories)
+                      .sort(([,a], [,b]) => b - a)[0];
+                    
+                    return lastTopCategory ? new Intl.NumberFormat('es-CL', {
+                      style: 'currency',
+                      currency: 'CLP',
+                      minimumFractionDigits: 0,
+                      notation: 'compact'
+                    }).format(lastTopCategory[1]) : '$0';
+                  })()}
+                </div>
+              </div>
+              <div className="text-muted-foreground">→</div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Current</div>
+                <div className="text-xs font-medium truncate max-w-16">
+                  {(() => {
+                    const currentMonthTxs = filteredTransactions.filter(t => {
+                      const txDate = new Date(t.transaction_timestamp_local);
+                      const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                      return txMonth === currentMonth;
+                    });
+                    
+                    const currentMonthCategories = currentMonthTxs.reduce((acc, t) => {
+                      const category = t.category || 'Uncategorized';
+                      acc[category] = (acc[category] || 0) + Math.abs(t.amount);
+                      return acc;
+                    }, {} as Record<string, number>);
+                    
+                    const currentTopCategory = Object.entries(currentMonthCategories)
+                      .sort(([,a], [,b]) => b - a)[0];
+                    
+                    return currentTopCategory ? currentTopCategory[0] : 'N/A';
+                  })()}
+                </div>
+                <div className="text-xs font-medium">
+                  {(() => {
+                    const currentMonthTxs = filteredTransactions.filter(t => {
+                      const txDate = new Date(t.transaction_timestamp_local);
+                      const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                      return txMonth === currentMonth;
+                    });
+                    
+                    const currentMonthCategories = currentMonthTxs.reduce((acc, t) => {
+                      const category = t.category || 'Uncategorized';
+                      acc[category] = (acc[category] || 0) + Math.abs(t.amount);
+                      return acc;
+                    }, {} as Record<string, number>);
+                    
+                    const currentTopCategory = Object.entries(currentMonthCategories)
+                      .sort(([,a], [,b]) => b - a)[0];
+                    
+                    return currentTopCategory ? new Intl.NumberFormat('es-CL', {
+                      style: 'currency',
+                      currency: 'CLP',
+                      minimumFractionDigits: 0,
+                      notation: 'compact'
+                    }).format(currentTopCategory[1]) : '$0';
+                  })()}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -616,16 +717,6 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
               {monthOverMonthChange >= 0 ? '+' : ''}{monthOverMonthChange.toFixed(1)}%
             </div>
             <p className="text-muted-foreground text-sm">vs Last Month</p>
-            <div className="mt-2 text-center">
-              <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                monthOverMonthChange >= 0 
-                  ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' 
-                  : 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-              }`}>
-                {monthOverMonthChange >= 0 ? '↗️' : '↘️'} 
-                {monthOverMonthChange >= 0 ? 'Increased' : 'Decreased'}
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -717,7 +808,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BarChart className="h-5 w-5" />
+            <div className="w-5 h-5 bg-gradient-to-br from-green-400 to-green-600 rounded-sm"></div>
             Category Spending Heatmap
           </CardTitle>
         </CardHeader>
@@ -817,7 +908,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                                 className="border border-border p-1 text-center text-xs relative"
                                 style={{
                                   backgroundColor: value > 0 
-                                    ? `hsl(var(--primary) / ${0.1 + intensity * 0.7})` 
+                                    ? `hsl(120 ${Math.round(30 + intensity * 50)}% ${Math.round(85 - intensity * 35)}%)` 
                                     : 'transparent'
                                 }}
                               >
