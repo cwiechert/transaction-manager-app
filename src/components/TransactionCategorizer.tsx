@@ -199,22 +199,22 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: Tran
   const [description, setDescription] = useState(transaction.description || "");
   const [applyToAll, setApplyToAll] = useState(false);
 
-  // Determine if this is a "Transferencia a Terceros" case
-  const isTransferToThird = transaction.transaction_type === "Transferencia" && 
-                           transaction.transferation_type === "Transferencia a Terceros";
+  // Determine if this is a "Transferencia a/para Terceros" case (handle both singular/plural variants)
+  const isTransferToThird = transaction.transaction_type === "Transferencia" &&
+    (transaction.transferation_type === "Transferencia a Terceros" || transaction.transferation_type === "Transferencias a Terceros");
 
   // Get the effective payment reason (use transferation_type for third party transfers)
-  const effectivePaymentReason = isTransferToThird ? 
-    transaction.transferation_type : 
+  const effectivePaymentReason = isTransferToThird ?
+    transaction.transferation_type :
     transaction.payment_reason;
 
   // Get the display title for the transaction
   const getDisplayTitle = () => {
     if (transaction.transaction_type === "Transferencia") {
-      if (transaction.transferation_type === "Transferencia a Terceros") {
-        return transaction.transferation_destination || transaction.transferation_type;
+      if (transaction.transferation_type === "Transferencia a Terceros" || transaction.transferation_type === "Transferencias a Terceros") {
+        return transaction.transferation_destination || transaction.transferation_type || "Transferencia";
       }
-      return transaction.transferation_type || transaction.payment_reason;
+      return transaction.transferation_type || transaction.payment_reason || "Transferencia";
     }
     return transaction.payment_reason;
   };
@@ -289,9 +289,14 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating }: Tran
             </p>
           </div>
           <div className="text-right ml-4">
-            <p className="text-lg font-bold text-foreground">
-              {formatAmount(transaction.amount, transaction.currency)}
-            </p>
+            <div className="flex items-baseline justify-end gap-2">
+              <p className="text-lg font-bold text-foreground">
+                {formatAmount(transaction.amount, transaction.currency)}
+              </p>
+              <span className="text-xs font-medium text-muted-foreground">
+                {transaction.currency}
+              </span>
+            </div>
           </div>
         </CardTitle>
       </CardHeader>
