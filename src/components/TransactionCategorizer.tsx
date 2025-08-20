@@ -200,10 +200,16 @@ export const TransactionCategorizer = () => {
         </div>
 
         <Tabs defaultValue="categorize" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="categorize">Categorize Transactions</TabsTrigger>
-            <TabsTrigger value="edit">Edit Recent Transactions</TabsTrigger>
-            <TabsTrigger value="visualizations">Visualizations</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 gap-1">
+            <TabsTrigger value="categorize" className="text-xs sm:text-sm px-2 sm:px-4">
+              <span className="hidden sm:inline">Categorize </span>Transactions
+            </TabsTrigger>
+            <TabsTrigger value="edit" className="text-xs sm:text-sm px-2 sm:px-4">
+              <span className="hidden sm:inline">Edit </span>Recent
+            </TabsTrigger>
+            <TabsTrigger value="visualizations" className="text-xs sm:text-sm px-2 sm:px-4">
+              Visualizations
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="categorize" className="space-y-4">
@@ -270,9 +276,11 @@ export const TransactionCategorizer = () => {
 
           <TabsContent value="visualizations" className="space-y-6">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="category-analysis">Category Analysis</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 gap-1">
+                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-4">Overview</TabsTrigger>
+                <TabsTrigger value="category-analysis" className="text-xs sm:text-sm px-2 sm:px-4">
+                  <span className="hidden sm:inline">Category </span>Analysis
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="overview" className="space-y-6">
@@ -1355,6 +1363,19 @@ const CategoryAnalysis = ({ transactions }: { transactions: Transaction[] }) => 
               .filter(reason => Object.keys(tableData[reason]).length > 0)
               .sort();
 
+            // Find max value for heatmap color scaling
+            const maxValue = Math.max(
+              ...Object.values(tableData).flatMap(monthData => 
+                Object.values(monthData)
+              )
+            );
+
+            const getHeatmapColor = (value: number) => {
+              if (!value || maxValue === 0) return 'transparent';
+              const intensity = Math.min(value / maxValue, 1);
+              return `hsl(280 ${Math.round(40 + intensity * 60)}% ${Math.round(80 - intensity * 30)}%)`;
+            };
+
             const formatMonth = (monthKey: string) => {
               const [year, month] = monthKey.split('-');
               const date = new Date(parseInt(year), parseInt(month) - 1);
@@ -1412,9 +1433,19 @@ const CategoryAnalysis = ({ transactions }: { transactions: Transaction[] }) => 
                             return (
                               <td 
                                 key={month} 
-                                className="border border-border p-3 text-center text-sm"
+                                className="border border-border p-3 text-center text-sm relative"
+                                style={{
+                                  backgroundColor: getHeatmapColor(value)
+                                }}
                               >
-                                {value > 0 ? formatCurrency(value) : '-'}
+                                {value > 0 && (
+                                  <div className="font-medium text-foreground">
+                                    {formatCurrency(value)}
+                                  </div>
+                                )}
+                                {value === 0 && (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
                               </td>
                             );
                           })}
