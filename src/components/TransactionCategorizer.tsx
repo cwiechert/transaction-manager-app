@@ -544,7 +544,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
               <RechartsBarChart
                 data={categoryChartData}
                 layout="horizontal"
-                margin={{ top: 20, right: 80, left: 20, bottom: 5 }}
+                margin={{ top: 20, right: 100, left: 80, bottom: 20 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
@@ -561,7 +561,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 <YAxis 
                   type="category"
                   dataKey="category"
-                  width={120}
+                  width={150}
+                  tick={{ fontSize: 12 }}
                 />
                 <Tooltip
                   formatter={(value: number, name, props) => {
