@@ -13,12 +13,13 @@ serve(async (req) => {
   }
 
   try {
-    const githubToken = Deno.env.get('GITHUB_TOKEN');
+    // Support both TOKEN_GITHUB (preferred) and GITHUB_TOKEN for backward compatibility
+    const githubToken = Deno.env.get('TOKEN_GITHUB') || Deno.env.get('GITHUB_TOKEN');
     
     if (!githubToken) {
-      console.error('GitHub token not found');
+      console.error('GitHub token not found (set TOKEN_GITHUB in Supabase)');
       return new Response(
-        JSON.stringify({ error: 'GitHub token not configured' }),
+        JSON.stringify({ error: 'GitHub token not configured. Please set TOKEN_GITHUB in Supabase secrets.' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
