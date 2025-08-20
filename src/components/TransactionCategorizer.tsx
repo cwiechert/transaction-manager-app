@@ -302,7 +302,7 @@ export const TransactionCategorizer = () => {
               </TabsContent>
               
               <TabsContent value="category-analysis" className="space-y-6">
-                <CategoryAnalysis transactions={allTransactions} />
+                <CategoryAnalysisWrapper transactions={allTransactions} />
               </TabsContent>
             </Tabs>
           </TabsContent>
@@ -1286,7 +1286,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
 };
 
 // Category Analysis Component
-const CategoryAnalysis = ({ transactions }: { transactions: Transaction[] }) => {
+const CategoryAnalysis = ({ transactions, usdToClp }: { transactions: Transaction[], usdToClp: number }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Otros');
   const [selectedMonths, setSelectedMonths] = useState<number>(3);
   
@@ -1371,7 +1371,8 @@ const CategoryAnalysis = ({ transactions }: { transactions: Transaction[] }) => 
                 acc[paymentReason] = {};
               }
               
-              acc[paymentReason][monthKey] = (acc[paymentReason][monthKey] || 0) + Math.abs(transaction.amount);
+              const amountInClp = transaction.currency === 'USD' ? transaction.amount * usdToClp : transaction.amount;
+              acc[paymentReason][monthKey] = (acc[paymentReason][monthKey] || 0) + Math.abs(amountInClp);
               return acc;
             }, {} as Record<string, Record<string, number>>);
 
@@ -1515,6 +1516,26 @@ const CategoryAnalysis = ({ transactions }: { transactions: Transaction[] }) => 
   );
 };
 
+// Category Analysis Wrapper with its own usdToClp state
+const CategoryAnalysisWrapper = ({ transactions }: { transactions: Transaction[] }) => {
+  const [usdToClp, setUsdToClp] = useState<number>(950);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // Use exchangerate-api.com which doesn't require API key for basic usage
+        const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const data = await res.json();
+        if (data?.rates?.CLP) setUsdToClp(data.rates.CLP);
+      } catch (e) {
+        console.warn('Failed to fetch USD->CLP rate, using fallback 950', e);
+        setUsdToClp(950); // Updated fallback rate
+      }
+    })();
+  }, []);
+
+  return <CategoryAnalysis transactions={transactions} usdToClp={usdToClp} />;
+};
 interface TransactionCardProps {
   transaction: Transaction;
   categories: string[];
