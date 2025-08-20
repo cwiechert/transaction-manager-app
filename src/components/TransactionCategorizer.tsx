@@ -281,7 +281,6 @@ export const TransactionCategorizer = () => {
               Visualizations
             </TabsTrigger>
           </TabsList>
-          </TabsList>
           
           <TabsContent value="categorize" className="space-y-4">
             <div className="mb-4">
