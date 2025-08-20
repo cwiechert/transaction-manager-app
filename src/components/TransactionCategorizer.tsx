@@ -132,9 +132,8 @@ export const TransactionCategorizer = () => {
           .from('categorization_rules')
           .upsert({
             payment_reason: paymentReason,
-            category
-          }, {
-            onConflict: 'payment_reason'
+            category,
+            user_id: user?.id
           });
 
         if (ruleError) throw ruleError;
