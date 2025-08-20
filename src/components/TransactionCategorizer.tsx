@@ -216,10 +216,10 @@ export const TransactionCategorizer = () => {
         <Tabs defaultValue="categorize" className="w-full">
           <TabsList className="grid w-full grid-cols-3 gap-1">
             <TabsTrigger value="categorize" className="text-xs sm:text-sm px-2 sm:px-4">
-              <span className="hidden sm:inline">Categorize </span>Transactions
+              <span className="hidden sm:inline">Categorized </span>Transactions
             </TabsTrigger>
             <TabsTrigger value="edit" className="text-xs sm:text-sm px-2 sm:px-4">
-              <span className="hidden sm:inline">Edit </span>Recent
+              <span className="hidden sm:inline">Edit Recent </span>Transactions
             </TabsTrigger>
             <TabsTrigger value="visualizations" className="text-xs sm:text-sm px-2 sm:px-4">
               Visualizations
