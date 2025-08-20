@@ -317,6 +317,12 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
     return true;
   });
 
+  // Calculate current vs last month comparison
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
   // Prepare data for category spending chart
   const categoryData = (categoryChartView === 'current' 
     ? filteredTransactions.filter(t => {
@@ -352,12 +358,6 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   // Get unique categories from transactions
   const uniqueCategories = [...new Set(filteredTransactions.map(t => t.category).filter(Boolean))];
 
-  // Calculate current vs last month comparison
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
-  
   const currentMonthSpending = filteredTransactions
     .filter(t => {
       const txDate = new Date(t.transaction_timestamp_local);
