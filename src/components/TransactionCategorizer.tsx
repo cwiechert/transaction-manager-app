@@ -27,10 +27,19 @@ interface Transaction {
   transferation_destination: string | null;
 }
 
+interface CategorizationRule {
+  id: string;
+  payment_reason: string;
+  category: string;
+  updated_at: string;
+  user_id: string;
+}
+
 export const TransactionCategorizer = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [categorizationRules, setCategorizationRules] = useState<CategorizationRule[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -43,6 +52,7 @@ export const TransactionCategorizer = () => {
     fetchRecentTransactions();
     fetchAllTransactions();
     fetchCategories();
+    fetchCategorizationRules();
   }, [transactionLimit]);
 
   const fetchUncategorizedTransactions = async () => {
@@ -113,6 +123,20 @@ export const TransactionCategorizer = () => {
       setCategories(uniqueCategories);
     } catch (error) {
       console.error('Failed to fetch categories:', error);
+    }
+  };
+
+  const fetchCategorizationRules = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categorization_rules')
+        .select('id, payment_reason, category, updated_at, user_id')
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      setCategorizationRules(data || []);
+    } catch (error) {
+      console.error('Failed to fetch categorization rules:', error);
     }
   };
 
@@ -213,7 +237,7 @@ export const TransactionCategorizer = () => {
         </div>
 
         <Tabs defaultValue="categorize" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 gap-1">
+          <TabsList className="grid w-full grid-cols-4 gap-1">
             <TabsTrigger value="categorize" className="text-xs sm:text-sm px-2 sm:px-4">
               <span className="hidden sm:inline">Uncategorized Transactions</span>
               <span className="sm:hidden">Transactions</span>
@@ -221,6 +245,10 @@ export const TransactionCategorizer = () => {
             <TabsTrigger value="edit" className="text-xs sm:text-sm px-2 sm:px-4">
               <span className="hidden sm:inline">Edit Recent</span>
               <span className="sm:hidden">Recent</span>
+            </TabsTrigger>
+            <TabsTrigger value="rules" className="text-xs sm:text-sm px-2 sm:px-4">
+              <span className="hidden sm:inline">Rules</span>
+              <span className="sm:hidden">Rules</span>
             </TabsTrigger>
             <TabsTrigger value="visualizations" className="text-xs sm:text-sm px-2 sm:px-4">
               Visualizations
@@ -289,6 +317,14 @@ export const TransactionCategorizer = () => {
             ))}
           </TabsContent>
 
+          <TabsContent value="rules" className="space-y-4">
+            <CategorizationRulesManager 
+              rules={categorizationRules}
+              categories={categories}
+              onRulesUpdate={fetchCategorizationRules}
+            />
+          </TabsContent>
+
           <TabsContent value="visualizations" className="space-y-6">
             <Tabs defaultValue="overview" className="w-full">
               <TabsList className="grid w-full grid-cols-2 gap-1">
@@ -311,6 +347,321 @@ export const TransactionCategorizer = () => {
         </Tabs>
       </div>
     </div>
+  );
+};
+
+// Categorization Rules Manager Component
+const CategorizationRulesManager = ({ 
+  rules, 
+  categories, 
+  onRulesUpdate 
+}: { 
+  rules: CategorizationRule[], 
+  categories: string[], 
+  onRulesUpdate: () => void 
+}) => {
+  const [editingRule, setEditingRule] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<keyof CategorizationRule>('updated_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [filters, setFilters] = useState({
+    payment_reason: '',
+    category: ''
+  });
+  const { toast } = useToast();
+
+  // Filter and sort rules
+  const filteredAndSortedRules = rules
+    .filter(rule => {
+      const matchesPaymentReason = !filters.payment_reason || 
+        rule.payment_reason.toLowerCase().includes(filters.payment_reason.toLowerCase());
+      const matchesCategory = !filters.category || 
+        rule.category.toLowerCase().includes(filters.category.toLowerCase());
+      return matchesPaymentReason && matchesCategory;
+    })
+    .sort((a, b) => {
+      const aValue = a[sortField];
+      const bValue = b[sortField];
+      const direction = sortDirection === 'asc' ? 1 : -1;
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return aValue.localeCompare(bValue) * direction;
+      }
+      return 0;
+    });
+
+  const handleSort = (field: keyof CategorizationRule) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const updateRule = async (ruleId: string, updates: Partial<CategorizationRule>) => {
+    try {
+      const { error } = await supabase
+        .from('categorization_rules')
+        .update(updates)
+        .eq('id', ruleId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Rule updated successfully",
+      });
+
+      onRulesUpdate();
+      setEditingRule(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update rule",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteRule = async (ruleId: string) => {
+    try {
+      const { error } = await supabase
+        .from('categorization_rules')
+        .delete()
+        .eq('id', ruleId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Rule deleted successfully",
+      });
+
+      onRulesUpdate();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete rule",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Categorization Rules</h3>
+        <p className="text-sm text-muted-foreground">{filteredAndSortedRules.length} rules</p>
+      </div>
+
+      {/* Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-card rounded-lg border">
+        <div className="space-y-2">
+          <Label htmlFor="payment-reason-filter">Filter by Payment Reason</Label>
+          <Input
+            id="payment-reason-filter"
+            placeholder="Search payment reason..."
+            value={filters.payment_reason}
+            onChange={(e) => setFilters(prev => ({ ...prev, payment_reason: e.target.value }))}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="category-filter">Filter by Category</Label>
+          <Input
+            id="category-filter"
+            placeholder="Search category..."
+            value={filters.category}
+            onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+          />
+        </div>
+      </div>
+
+      {/* Rules Table */}
+      <div className="rounded-md border">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="text-left p-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleSort('id')}
+                    className="font-semibold"
+                  >
+                    ID {sortField === 'id' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </Button>
+                </th>
+                <th className="text-left p-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleSort('payment_reason')}
+                    className="font-semibold"
+                  >
+                    Payment Reason {sortField === 'payment_reason' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </Button>
+                </th>
+                <th className="text-left p-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleSort('category')}
+                    className="font-semibold"
+                  >
+                    Category {sortField === 'category' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </Button>
+                </th>
+                <th className="text-left p-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleSort('updated_at')}
+                    className="font-semibold"
+                  >
+                    Updated At {sortField === 'updated_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </Button>
+                </th>
+                <th className="text-left p-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAndSortedRules.map((rule) => (
+                <CategorizationRuleRow
+                  key={rule.id}
+                  rule={rule}
+                  categories={categories}
+                  isEditing={editingRule === rule.id}
+                  onEdit={() => setEditingRule(rule.id)}
+                  onSave={(updates) => updateRule(rule.id, updates)}
+                  onCancel={() => setEditingRule(null)}
+                  onDelete={() => deleteRule(rule.id)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {filteredAndSortedRules.length === 0 && (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-muted-foreground">
+              No categorization rules found matching your filters.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// Individual rule row component
+const CategorizationRuleRow = ({
+  rule,
+  categories,
+  isEditing,
+  onEdit,
+  onSave,
+  onCancel,
+  onDelete
+}: {
+  rule: CategorizationRule;
+  categories: string[];
+  isEditing: boolean;
+  onEdit: () => void;
+  onSave: (updates: Partial<CategorizationRule>) => void;
+  onCancel: () => void;
+  onDelete: () => void;
+}) => {
+  const [editData, setEditData] = useState({
+    payment_reason: rule.payment_reason,
+    category: rule.category
+  });
+
+  useEffect(() => {
+    if (isEditing) {
+      setEditData({
+        payment_reason: rule.payment_reason,
+        category: rule.category
+      });
+    }
+  }, [isEditing, rule]);
+
+  const handleSave = () => {
+    onSave(editData);
+  };
+
+  return (
+    <tr className="border-b hover:bg-muted/25">
+      <td className="p-4 font-mono text-xs">{rule.id.slice(0, 8)}...</td>
+      <td className="p-4">
+        {isEditing ? (
+          <Input
+            value={editData.payment_reason}
+            onChange={(e) => setEditData(prev => ({ ...prev, payment_reason: e.target.value }))}
+            className="min-w-[200px]"
+          />
+        ) : (
+          <span className="break-all">{rule.payment_reason}</span>
+        )}
+      </td>
+      <td className="p-4">
+        {isEditing ? (
+          <Select
+            value={editData.category}
+            onValueChange={(value) => setEditData(prev => ({ ...prev, category: value }))}
+          >
+            <SelectTrigger className="min-w-[150px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span>{rule.category}</span>
+        )}
+      </td>
+      <td className="p-4 text-sm text-muted-foreground">
+        {new Date(rule.updated_at).toLocaleString()}
+      </td>
+      <td className="p-4">
+        <div className="flex gap-2">
+          {isEditing ? (
+            <>
+              <Button size="sm" onClick={handleSave}>
+                Save
+              </Button>
+              <Button size="sm" variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button size="sm" variant="outline" onClick={onEdit}>
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button 
+                size="sm" 
+                variant="destructive" 
+                onClick={() => {
+                  if (confirm('Are you sure you want to delete this rule?')) {
+                    onDelete();
+                  }
+                }}
+              >
+                Delete
+              </Button>
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 };
 
