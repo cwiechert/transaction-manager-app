@@ -216,13 +216,13 @@ export const TransactionCategorizer = () => {
         <Tabs defaultValue="categorize" className="w-full">
           <TabsList className="grid w-full grid-cols-3 gap-1">
             <TabsTrigger value="categorize" className="text-xs sm:text-sm px-2 sm:px-4">
-              <span className="hidden sm:inline">Categorize </span>Transactions
+              <span className="hidden sm:inline">categorize </span>transactions
             </TabsTrigger>
             <TabsTrigger value="edit" className="text-xs sm:text-sm px-2 sm:px-4">
-              <span className="hidden sm:inline">Edit </span>Recent
+              <span className="hidden sm:inline">edit </span>recent
             </TabsTrigger>
             <TabsTrigger value="visualizations" className="text-xs sm:text-sm px-2 sm:px-4">
-              Visualizations
+              visualizations
             </TabsTrigger>
           </TabsList>
           
@@ -291,9 +291,9 @@ export const TransactionCategorizer = () => {
           <TabsContent value="visualizations" className="space-y-6">
             <Tabs defaultValue="overview" className="w-full">
               <TabsList className="grid w-full grid-cols-2 gap-1">
-                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-4">Overview</TabsTrigger>
+                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-4">overview</TabsTrigger>
                 <TabsTrigger value="category-analysis" className="text-xs sm:text-sm px-2 sm:px-4">
-                  <span className="hidden sm:inline">Category </span>Analysis
+                  <span className="hidden sm:inline">category </span>analysis
                 </TabsTrigger>
               </TabsList>
               
@@ -328,11 +328,13 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=CLP');
+        // Use exchangerate-api.com which doesn't require API key for basic usage
+        const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
         const data = await res.json();
         if (data?.rates?.CLP) setUsdToClp(data.rates.CLP);
       } catch (e) {
-        console.warn('Failed to fetch USD->CLP rate, using fallback 900', e);
+        console.warn('Failed to fetch USD->CLP rate, using fallback 950', e);
+        setUsdToClp(950); // Updated fallback rate
       }
     })();
   }, []);
@@ -381,7 +383,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
     : filteredTransactions
   ).reduce((acc, transaction) => {
     const category = transaction.category || 'Uncategorized';
-    acc[category] = (acc[category] || 0) + Math.abs(transaction.amount);
+    const amountInClp = transaction.currency === 'USD' ? transaction.amount * usdToClp : transaction.amount;
+    acc[category] = (acc[category] || 0) + Math.abs(amountInClp);
     return acc;
   }, {} as Record<string, number>);
 
@@ -394,7 +397,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   const monthlyData = filteredTransactions.reduce((acc, transaction) => {
     const date = new Date(transaction.transaction_timestamp_local);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    acc[monthKey] = (acc[monthKey] || 0) + Math.abs(transaction.amount);
+    const amountInClp = transaction.currency === 'USD' ? transaction.amount * usdToClp : transaction.amount;
+    acc[monthKey] = (acc[monthKey] || 0) + Math.abs(amountInClp);
     return acc;
   }, {} as Record<string, number>);
 
@@ -412,7 +416,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
       const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
       return txMonth === currentMonth;
     })
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    .reduce((sum, t) => sum + Math.abs(t.currency === 'USD' ? t.amount * usdToClp : t.amount), 0);
 
   const lastMonthSpending = filteredTransactions
     .filter(t => {
@@ -420,7 +424,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
       const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
       return txMonth === lastMonth;
     })
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    .reduce((sum, t) => sum + Math.abs(t.currency === 'USD' ? t.amount * usdToClp : t.amount), 0);
 
   const monthOverMonthChange = lastMonthSpending > 0 
     ? ((currentMonthSpending - lastMonthSpending) / lastMonthSpending) * 100 
@@ -535,7 +539,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 style: 'currency',
                 currency: 'CLP',
                 minimumFractionDigits: 0,
-              }).format(filteredTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0))}
+              }).format(filteredTransactions.reduce((sum, t) => sum + Math.abs(t.currency === 'USD' ? t.amount * usdToClp : t.amount), 0))}
             </div>
             <p className="text-muted-foreground text-sm">Total Spending</p>
             <div className="flex items-center justify-between mt-2 p-2 bg-muted/50 rounded-md">
@@ -601,7 +605,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 
                 const currentMonthCategories = currentMonthTxs.reduce((acc, t) => {
                   const category = t.category || 'Uncategorized';
-                  acc[category] = (acc[category] || 0) + Math.abs(t.amount);
+                  const amountInClp = t.currency === 'USD' ? t.amount * usdToClp : t.amount;
+                  acc[category] = (acc[category] || 0) + Math.abs(amountInClp);
                   return acc;
                 }, {} as Record<string, number>);
                 
@@ -626,7 +631,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                     
                     const lastMonthCategories = lastMonthTxs.reduce((acc, t) => {
                       const category = t.category || 'Uncategorized';
-                      acc[category] = (acc[category] || 0) + Math.abs(t.amount);
+                      const amountInClp = t.currency === 'USD' ? t.amount * usdToClp : t.amount;
+                      acc[category] = (acc[category] || 0) + Math.abs(amountInClp);
                       return acc;
                     }, {} as Record<string, number>);
                     
@@ -646,7 +652,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                     
                     const lastMonthCategories = lastMonthTxs.reduce((acc, t) => {
                       const category = t.category || 'Uncategorized';
-                      acc[category] = (acc[category] || 0) + Math.abs(t.amount);
+                      const amountInClp = t.currency === 'USD' ? t.amount * usdToClp : t.amount;
+                      acc[category] = (acc[category] || 0) + Math.abs(amountInClp);
                       return acc;
                     }, {} as Record<string, number>);
                     
@@ -675,7 +682,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                     
                     const currentMonthCategories = currentMonthTxs.reduce((acc, t) => {
                       const category = t.category || 'Uncategorized';
-                      acc[category] = (acc[category] || 0) + Math.abs(t.amount);
+                      const amountInClp = t.currency === 'USD' ? t.amount * usdToClp : t.amount;
+                      acc[category] = (acc[category] || 0) + Math.abs(amountInClp);
                       return acc;
                     }, {} as Record<string, number>);
                     
@@ -695,7 +703,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                     
                     const currentMonthCategories = currentMonthTxs.reduce((acc, t) => {
                       const category = t.category || 'Uncategorized';
-                      acc[category] = (acc[category] || 0) + Math.abs(t.amount);
+                      const amountInClp = t.currency === 'USD' ? t.amount * usdToClp : t.amount;
+                      acc[category] = (acc[category] || 0) + Math.abs(amountInClp);
                       return acc;
                     }, {} as Record<string, number>);
                     
@@ -722,7 +731,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 style: 'currency',
                 currency: 'CLP',
                 minimumFractionDigits: 0,
-              }).format(filteredTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0) / filteredTransactions.length) : '$0'}
+              }).format(filteredTransactions.reduce((sum, t) => sum + Math.abs(t.currency === 'USD' ? t.amount * usdToClp : t.amount), 0) / filteredTransactions.length) : '$0'}
             </div>
             <p className="text-muted-foreground text-sm">Average Transaction</p>
             <div className="flex items-center justify-between mt-2 p-2 bg-muted/50 rounded-md">
@@ -740,7 +749,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                         currency: 'CLP',
                         minimumFractionDigits: 0,
                         notation: 'compact'
-                      }).format(lastMonthTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0) / lastMonthTxs.length)
+                      }).format(lastMonthTxs.reduce((sum, t) => sum + Math.abs(t.currency === 'USD' ? t.amount * usdToClp : t.amount), 0) / lastMonthTxs.length)
                     : '$0';
                 })()}</div>
               </div>
@@ -759,7 +768,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                         currency: 'CLP',
                         minimumFractionDigits: 0,
                         notation: 'compact'
-                      }).format(currentMonthTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0) / currentMonthTxs.length)
+                      }).format(currentMonthTxs.reduce((sum, t) => sum + Math.abs(t.currency === 'USD' ? t.amount * usdToClp : t.amount), 0) / currentMonthTxs.length)
                     : '$0';
                 })()}</div>
               </div>
@@ -895,7 +904,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 acc[category] = {};
               }
               
-              acc[category][monthKey] = (acc[category][monthKey] || 0) + Math.abs(transaction.amount);
+              const amountInClp = transaction.currency === 'USD' ? transaction.amount * usdToClp : transaction.amount;
+              acc[category][monthKey] = (acc[category][monthKey] || 0) + Math.abs(amountInClp);
               return acc;
             }, {} as Record<string, Record<string, number>>);
 
@@ -1052,7 +1062,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 acc[category] = {};
               }
               
-              acc[category][monthKey] = (acc[category][monthKey] || 0) + Math.abs(transaction.amount);
+              const amountInClp = transaction.currency === 'USD' ? transaction.amount * usdToClp : transaction.amount;
+              acc[category][monthKey] = (acc[category][monthKey] || 0) + Math.abs(amountInClp);
               return acc;
             }, {} as Record<string, Record<string, number>>);
 
@@ -1562,30 +1573,16 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
     onUpdate(transaction.Id, finalCategory, description.trim(), applyToAll, effectivePaymentReason);
   };
 
-  const formatAmount = (amount: number, currency: string) => {
-    console.log('Formatting amount:', amount, 'currency:', currency);
+  const formatAmount = (amount: number, currency: string, usdToClp?: number) => {
+    // Convert everything to CLP for display
+    const clpAmount = currency === 'USD' && usdToClp ? amount * usdToClp : amount;
     
-    if (currency === 'CLP') {
-      return new Intl.NumberFormat('es-CL', {
-        style: 'currency',
-        currency: 'CLP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(amount);
-    } else if (currency === 'USD') {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(amount);
-    } else {
-      // Fallback for unknown currencies
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency || 'USD',
-      }).format(amount);
-    }
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(clpAmount);
   };
 
   const formatDate = (dateString: string) => {
@@ -1621,7 +1618,7 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
                 {formatAmount(transaction.amount, transaction.currency)}
               </p>
               <span className="text-xs font-medium text-muted-foreground">
-                {transaction.currency}
+                CLP
               </span>
             </div>
           </div>
