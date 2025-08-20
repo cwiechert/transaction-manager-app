@@ -9,8 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Loader2, Edit, BarChart3, PieChart, TrendingUp } from "lucide-react";
+import { Loader2, Edit, BarChart3, PieChart, TrendingUp, LogOut } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Tooltip } from 'recharts';
 
 interface Transaction {
@@ -35,6 +36,7 @@ export const TransactionCategorizer = () => {
   const [updating, setUpdating] = useState<string | null>(null);
   const [transactionLimit, setTransactionLimit] = useState(10);
   const { toast } = useToast();
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     fetchUncategorizedTransactions();
@@ -195,8 +197,20 @@ export const TransactionCategorizer = () => {
         <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">Transaction Manager</h1>
+            {user && <p className="text-sm text-muted-foreground">Welcome, {user.email}</p>}
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => signOut()}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+            <ThemeToggle />
+          </div>
         </div>
 
         <Tabs defaultValue="categorize" className="w-full">
