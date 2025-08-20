@@ -369,13 +369,15 @@ const CategorizationRulesManager = ({
   });
   const { toast } = useToast();
 
+  // Get unique values for dropdowns
+  const uniquePaymentReasons = [...new Set(rules.map(rule => rule.payment_reason))].sort();
+  const uniqueCategories = [...new Set(rules.map(rule => rule.category))].sort();
+
   // Filter and sort rules
   const filteredAndSortedRules = rules
     .filter(rule => {
-      const matchesPaymentReason = !filters.payment_reason || 
-        rule.payment_reason.toLowerCase().includes(filters.payment_reason.toLowerCase());
-      const matchesCategory = !filters.category || 
-        rule.category.toLowerCase().includes(filters.category.toLowerCase());
+      const matchesPaymentReason = !filters.payment_reason || rule.payment_reason === filters.payment_reason;
+      const matchesCategory = !filters.category || rule.category === filters.category;
       return matchesPaymentReason && matchesCategory;
     })
     .sort((a, b) => {
@@ -458,21 +460,41 @@ const CategorizationRulesManager = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-card rounded-lg border">
         <div className="space-y-2">
           <Label htmlFor="payment-reason-filter">Filter by Payment Reason</Label>
-          <Input
-            id="payment-reason-filter"
-            placeholder="Search payment reason..."
+          <Select
             value={filters.payment_reason}
-            onChange={(e) => setFilters(prev => ({ ...prev, payment_reason: e.target.value }))}
-          />
+            onValueChange={(value) => setFilters(prev => ({ ...prev, payment_reason: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All payment reasons" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All payment reasons</SelectItem>
+              {uniquePaymentReasons.map((reason) => (
+                <SelectItem key={reason} value={reason}>
+                  {reason}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="category-filter">Filter by Category</Label>
-          <Input
-            id="category-filter"
-            placeholder="Search category..."
+          <Select
             value={filters.category}
-            onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
-          />
+            onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All categories</SelectItem>
+              {uniqueCategories.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -486,20 +508,15 @@ const CategorizationRulesManager = ({
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => handleSort('id')}
-                    className="font-semibold"
-                  >
-                    ID {sortField === 'id' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </Button>
-                </th>
-                <th className="text-left p-4">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
                     onClick={() => handleSort('payment_reason')}
-                    className="font-semibold"
+                    className="font-semibold h-auto p-0 hover:bg-transparent"
                   >
-                    Payment Reason {sortField === 'payment_reason' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    Payment Reason
+                    <span className="ml-2">
+                      {sortField === 'payment_reason' ? (
+                        sortDirection === 'asc' ? '↑' : '↓'
+                      ) : '↕'}
+                    </span>
                   </Button>
                 </th>
                 <th className="text-left p-4">
@@ -507,9 +524,14 @@ const CategorizationRulesManager = ({
                     variant="ghost" 
                     size="sm" 
                     onClick={() => handleSort('category')}
-                    className="font-semibold"
+                    className="font-semibold h-auto p-0 hover:bg-transparent"
                   >
-                    Category {sortField === 'category' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    Category
+                    <span className="ml-2">
+                      {sortField === 'category' ? (
+                        sortDirection === 'asc' ? '↑' : '↓'
+                      ) : '↕'}
+                    </span>
                   </Button>
                 </th>
                 <th className="text-left p-4">
@@ -517,9 +539,14 @@ const CategorizationRulesManager = ({
                     variant="ghost" 
                     size="sm" 
                     onClick={() => handleSort('updated_at')}
-                    className="font-semibold"
+                    className="font-semibold h-auto p-0 hover:bg-transparent"
                   >
-                    Updated At {sortField === 'updated_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    Updated At
+                    <span className="ml-2">
+                      {sortField === 'updated_at' ? (
+                        sortDirection === 'asc' ? '↑' : '↓'
+                      ) : '↕'}
+                    </span>
                   </Button>
                 </th>
                 <th className="text-left p-4">Actions</th>
@@ -594,7 +621,6 @@ const CategorizationRuleRow = ({
 
   return (
     <tr className="border-b hover:bg-muted/25">
-      <td className="p-4 font-mono text-xs">{rule.id.slice(0, 8)}...</td>
       <td className="p-4">
         {isEditing ? (
           <Input
@@ -603,7 +629,10 @@ const CategorizationRuleRow = ({
             className="min-w-[200px]"
           />
         ) : (
-          <span className="break-all">{rule.payment_reason}</span>
+          <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded" onClick={onEdit}>
+            <span className="break-all">{rule.payment_reason}</span>
+            <Edit className="h-3 w-3 text-muted-foreground" />
+          </div>
         )}
       </td>
       <td className="p-4">
@@ -624,7 +653,10 @@ const CategorizationRuleRow = ({
             </SelectContent>
           </Select>
         ) : (
-          <span>{rule.category}</span>
+          <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded" onClick={onEdit}>
+            <span>{rule.category}</span>
+            <Edit className="h-3 w-3 text-muted-foreground" />
+          </div>
         )}
       </td>
       <td className="p-4 text-sm text-muted-foreground">
