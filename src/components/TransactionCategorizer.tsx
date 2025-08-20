@@ -482,19 +482,26 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
               }).format(filteredTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0))}
             </div>
             <p className="text-muted-foreground text-sm">Total Spending</p>
-            <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>Last: {new Intl.NumberFormat('es-CL', {
-                style: 'currency',
-                currency: 'CLP',
-                minimumFractionDigits: 0,
-                notation: 'compact'
-              }).format(lastMonthSpending)}</span>
-              <span>Current: {new Intl.NumberFormat('es-CL', {
-                style: 'currency',
-                currency: 'CLP',
-                minimumFractionDigits: 0,
-                notation: 'compact'
-              }).format(currentMonthSpending)}</span>
+            <div className="flex items-center justify-between mt-2 p-2 bg-muted/50 rounded-md">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Previous</div>
+                <div className="text-sm font-medium">{new Intl.NumberFormat('es-CL', {
+                  style: 'currency',
+                  currency: 'CLP',
+                  minimumFractionDigits: 0,
+                  notation: 'compact'
+                }).format(lastMonthSpending)}</div>
+              </div>
+              <div className="text-muted-foreground">→</div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Current</div>
+                <div className="text-sm font-medium">{new Intl.NumberFormat('es-CL', {
+                  style: 'currency',
+                  currency: 'CLP',
+                  minimumFractionDigits: 0,
+                  notation: 'compact'
+                }).format(currentMonthSpending)}</div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -503,36 +510,50 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
           <CardContent className="p-6">
             <div className="text-2xl font-bold">{filteredTransactions.length}</div>
             <p className="text-muted-foreground text-sm">Total Transactions</p>
-            <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>Last: {filteredTransactions.filter(t => {
-                const txDate = new Date(t.transaction_timestamp_local);
-                const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
-                return txMonth === lastMonth;
-              }).length}</span>
-              <span>Current: {filteredTransactions.filter(t => {
-                const txDate = new Date(t.transaction_timestamp_local);
-                const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
-                return txMonth === currentMonth;
-              }).length}</span>
+            <div className="flex items-center justify-between mt-2 p-2 bg-muted/50 rounded-md">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Previous</div>
+                <div className="text-sm font-medium">{filteredTransactions.filter(t => {
+                  const txDate = new Date(t.transaction_timestamp_local);
+                  const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                  return txMonth === lastMonth;
+                }).length}</div>
+              </div>
+              <div className="text-muted-foreground">→</div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Current</div>
+                <div className="text-sm font-medium">{filteredTransactions.filter(t => {
+                  const txDate = new Date(t.transaction_timestamp_local);
+                  const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                  return txMonth === currentMonth;
+                }).length}</div>
+              </div>
             </div>
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="p-6">
-            <div className="text-2xl font-bold">{uniqueCategories.length}</div>
-            <p className="text-muted-foreground text-sm">Categories Used</p>
-            <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>Last: {[...new Set(filteredTransactions.filter(t => {
-                const txDate = new Date(t.transaction_timestamp_local);
-                const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
-                return txMonth === lastMonth;
-              }).map(t => t.category).filter(Boolean))].length}</span>
-              <span>Current: {[...new Set(filteredTransactions.filter(t => {
-                const txDate = new Date(t.transaction_timestamp_local);
-                const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
-                return txMonth === currentMonth;
-              }).map(t => t.category).filter(Boolean))].length}</span>
+            <div className="text-2xl font-bold">
+              {(() => {
+                const topCategory = categoryChartData[0];
+                return topCategory ? topCategory.category : 'N/A';
+              })()}
+            </div>
+            <p className="text-muted-foreground text-sm">Top Category</p>
+            <div className="mt-2 p-2 bg-muted/50 rounded-md text-center">
+              <div className="text-xs text-muted-foreground">Amount</div>
+              <div className="text-sm font-medium">
+                {(() => {
+                  const topCategory = categoryChartData[0];
+                  return topCategory ? new Intl.NumberFormat('es-CL', {
+                    style: 'currency',
+                    currency: 'CLP',
+                    minimumFractionDigits: 0,
+                    notation: 'compact'
+                  }).format(topCategory.amount) : '$0';
+                })()}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -547,37 +568,44 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
               }).format(filteredTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0) / filteredTransactions.length) : '$0'}
             </div>
             <p className="text-muted-foreground text-sm">Average Transaction</p>
-            <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>Last: {(() => {
-                const lastMonthTxs = filteredTransactions.filter(t => {
-                  const txDate = new Date(t.transaction_timestamp_local);
-                  const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
-                  return txMonth === lastMonth;
-                });
-                return lastMonthTxs.length > 0 
-                  ? new Intl.NumberFormat('es-CL', {
-                      style: 'currency',
-                      currency: 'CLP',
-                      minimumFractionDigits: 0,
-                      notation: 'compact'
-                    }).format(lastMonthTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0) / lastMonthTxs.length)
-                  : '$0';
-              })()}</span>
-              <span>Current: {(() => {
-                const currentMonthTxs = filteredTransactions.filter(t => {
-                  const txDate = new Date(t.transaction_timestamp_local);
-                  const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
-                  return txMonth === currentMonth;
-                });
-                return currentMonthTxs.length > 0 
-                  ? new Intl.NumberFormat('es-CL', {
-                      style: 'currency',
-                      currency: 'CLP',
-                      minimumFractionDigits: 0,
-                      notation: 'compact'
-                    }).format(currentMonthTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0) / currentMonthTxs.length)
-                  : '$0';
-              })()}</span>
+            <div className="flex items-center justify-between mt-2 p-2 bg-muted/50 rounded-md">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Previous</div>
+                <div className="text-sm font-medium">{(() => {
+                  const lastMonthTxs = filteredTransactions.filter(t => {
+                    const txDate = new Date(t.transaction_timestamp_local);
+                    const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                    return txMonth === lastMonth;
+                  });
+                  return lastMonthTxs.length > 0 
+                    ? new Intl.NumberFormat('es-CL', {
+                        style: 'currency',
+                        currency: 'CLP',
+                        minimumFractionDigits: 0,
+                        notation: 'compact'
+                      }).format(lastMonthTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0) / lastMonthTxs.length)
+                    : '$0';
+                })()}</div>
+              </div>
+              <div className="text-muted-foreground">→</div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Current</div>
+                <div className="text-sm font-medium">{(() => {
+                  const currentMonthTxs = filteredTransactions.filter(t => {
+                    const txDate = new Date(t.transaction_timestamp_local);
+                    const txMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                    return txMonth === currentMonth;
+                  });
+                  return currentMonthTxs.length > 0 
+                    ? new Intl.NumberFormat('es-CL', {
+                        style: 'currency',
+                        currency: 'CLP',
+                        minimumFractionDigits: 0,
+                        notation: 'compact'
+                      }).format(currentMonthTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0) / currentMonthTxs.length)
+                    : '$0';
+                })()}</div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -588,19 +616,15 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
               {monthOverMonthChange >= 0 ? '+' : ''}{monthOverMonthChange.toFixed(1)}%
             </div>
             <p className="text-muted-foreground text-sm">vs Last Month</p>
-            <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>Last: {new Intl.NumberFormat('es-CL', {
-                style: 'currency',
-                currency: 'CLP',
-                minimumFractionDigits: 0,
-                notation: 'compact'
-              }).format(lastMonthSpending)}</span>
-              <span>Current: {new Intl.NumberFormat('es-CL', {
-                style: 'currency',
-                currency: 'CLP',
-                minimumFractionDigits: 0,
-                notation: 'compact'
-              }).format(currentMonthSpending)}</span>
+            <div className="mt-2 text-center">
+              <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                monthOverMonthChange >= 0 
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' 
+                  : 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+              }`}>
+                {monthOverMonthChange >= 0 ? '↗️' : '↘️'} 
+                {monthOverMonthChange >= 0 ? 'Increased' : 'Decreased'}
+              </div>
             </div>
           </CardContent>
         </Card>
