@@ -219,7 +219,7 @@ export const TransactionCategorizer = () => {
               <span className="hidden sm:inline">Categorized </span>Transactions
             </TabsTrigger>
             <TabsTrigger value="edit" className="text-xs sm:text-sm px-2 sm:px-4">
-              <span className="hidden sm:inline">Edit Recent </span>Transactions
+              <span className="hidden sm:inline">Edit </span>Recent
             </TabsTrigger>
             <TabsTrigger value="visualizations" className="text-xs sm:text-sm px-2 sm:px-4">
               Visualizations
@@ -1573,16 +1573,24 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
     onUpdate(transaction.Id, finalCategory, description.trim(), applyToAll, effectivePaymentReason);
   };
 
-  const formatAmount = (amount: number, currency: string, usdToClp?: number) => {
-    // Convert everything to CLP for display
-    const clpAmount = currency === 'USD' && usdToClp ? amount * usdToClp : amount;
-    
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(clpAmount);
+  const formatAmount = (amount: number, currency: string) => {
+    if (currency === 'USD') {
+      // Show USD amounts as USD, not converted to CLP
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    } else {
+      // Show CLP amounts as CLP
+      return new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(amount);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -1618,7 +1626,7 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
                 {formatAmount(transaction.amount, transaction.currency)}
               </p>
               <span className="text-xs font-medium text-muted-foreground">
-                CLP
+                {transaction.currency}
               </span>
             </div>
           </div>
