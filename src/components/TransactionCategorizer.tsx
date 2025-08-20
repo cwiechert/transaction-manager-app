@@ -54,6 +54,7 @@ export const TransactionCategorizer = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [transactionLimit, setTransactionLimit] = useState(10);
+  const [showRules, setShowRules] = useState(false);
   const { toast } = useToast();
   const { user, signOut } = useAuth();
 
@@ -246,8 +247,28 @@ export const TransactionCategorizer = () => {
           </div>
         </div>
 
+        <div className="flex items-center gap-4 mb-6">
+          <Button 
+            onClick={() => setShowRules(!showRules)}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            {showRules ? 'Hide Rules' : 'Manage Rules'}
+          </Button>
+        </div>
+
+        {showRules && (
+          <div className="mb-6">
+            <CategorizationRulesManager 
+              rules={categorizationRules}
+              categories={categories}
+              onRulesUpdate={fetchCategorizationRules}
+              allTransactions={allTransactions}
+            />
+          </div>
+        )}
+
         <Tabs defaultValue="categorize" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 gap-1">
+          <TabsList className="grid w-full grid-cols-3 gap-1">
             <TabsTrigger value="categorize" className="text-xs sm:text-sm px-2 sm:px-4">
               <span className="hidden sm:inline">Uncategorized Transactions</span>
               <span className="sm:hidden">Transactions</span>
@@ -256,13 +277,10 @@ export const TransactionCategorizer = () => {
               <span className="hidden sm:inline">Edit Recent</span>
               <span className="sm:hidden">Recent</span>
             </TabsTrigger>
-            <TabsTrigger value="rules" className="text-xs sm:text-sm px-2 sm:px-4">
-              <span className="hidden sm:inline">Rules</span>
-              <span className="sm:hidden">Rules</span>
-            </TabsTrigger>
             <TabsTrigger value="visualizations" className="text-xs sm:text-sm px-2 sm:px-4">
               Visualizations
             </TabsTrigger>
+          </TabsList>
           </TabsList>
           
           <TabsContent value="categorize" className="space-y-4">
@@ -325,15 +343,6 @@ export const TransactionCategorizer = () => {
                 showApplyToAll={false}
               />
             ))}
-          </TabsContent>
-
-          <TabsContent value="rules" className="space-y-4">
-            <CategorizationRulesManager 
-              rules={categorizationRules}
-              categories={categories}
-              onRulesUpdate={fetchCategorizationRules}
-              allTransactions={allTransactions}
-            />
           </TabsContent>
 
           <TabsContent value="visualizations" className="space-y-6">
