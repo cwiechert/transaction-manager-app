@@ -88,8 +88,7 @@ export const TransactionCategorizer = () => {
           .from('categorization_rules')
           .upsert({
             payment_reason: paymentReason,
-            category,
-            description: description || null
+            category
           }, {
             onConflict: 'payment_reason'
           });
