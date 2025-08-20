@@ -729,131 +729,6 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
         </Card>
       </div>
 
-      {/* New Monthly Category Change Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Category Monthly Change (%)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {(() => {
-            // Calculate monthly spending by category and percentage changes
-            const monthlyByCategory = filteredTransactions.reduce((acc, transaction) => {
-              const date = new Date(transaction.transaction_timestamp_local);
-              const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-              const category = transaction.category || 'Uncategorized';
-              
-              if (!acc[category]) {
-                acc[category] = {};
-              }
-              
-              acc[category][monthKey] = (acc[category][monthKey] || 0) + Math.abs(transaction.amount);
-              return acc;
-            }, {} as Record<string, Record<string, number>>);
-
-            // Get last 6 months sorted
-            const allMonths = [...new Set(
-              filteredTransactions.map(t => {
-                const date = new Date(t.transaction_timestamp_local);
-                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-              })
-            )].sort().slice(-6);
-
-            // Calculate percentage changes for each category
-            const categoryChanges = Object.keys(monthlyByCategory).map(category => {
-              const monthlyData = allMonths.map(month => {
-                const currentAmount = monthlyByCategory[category][month] || 0;
-                const prevMonthIndex = allMonths.indexOf(month) - 1;
-                const prevAmount = prevMonthIndex >= 0 ? (monthlyByCategory[category][allMonths[prevMonthIndex]] || 0) : 0;
-                
-                const change = prevAmount > 0 ? ((currentAmount - prevAmount) / prevAmount) * 100 : 0;
-                
-                return {
-                  month,
-                  change: currentAmount > 0 ? change : null, // Only show changes when there's current spending
-                  formattedMonth: (() => {
-                    const [year, monthNum] = month.split('-');
-                    const date = new Date(parseInt(year), parseInt(monthNum) - 1);
-                    return date.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' });
-                  })()
-                };
-              }).filter(item => item.change !== null); // Remove months with no spending
-
-              return {
-                category,
-                data: monthlyData
-              };
-            }).filter(item => item.data.length > 1); // Only include categories with at least 2 months of data
-
-            // Get top 5 categories by total spending for cleaner visualization
-            const topCategories = categoryChanges
-              .map(item => ({
-                ...item,
-                totalSpending: Object.values(monthlyByCategory[item.category] || {}).reduce((sum, val) => sum + val, 0)
-              }))
-              .sort((a, b) => b.totalSpending - a.totalSpending)
-              .slice(0, 5);
-
-            // Prepare chart data
-            const chartData = allMonths.map(month => {
-              const dataPoint: any = {
-                month: (() => {
-                  const [year, monthNum] = month.split('-');
-                  const date = new Date(parseInt(year), parseInt(monthNum) - 1);
-                  return date.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' });
-                })()
-              };
-
-              topCategories.forEach(({ category, data }) => {
-                const monthData = data.find(d => d.month === month);
-                dataPoint[category] = monthData ? monthData.change : null;
-              });
-
-              return dataPoint;
-            });
-
-            const categoryColors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1'];
-
-            return (
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis 
-                    tickFormatter={(value) => `${value.toFixed(0)}%`}
-                  />
-                  <Tooltip
-                    formatter={(value: number) => [
-                      value ? `${value > 0 ? '+' : ''}${value.toFixed(1)}%` : 'No data',
-                      'Change'
-                    ]}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Legend />
-                  {topCategories.map((item, index) => (
-                    <Line 
-                      key={item.category}
-                      type="monotone" 
-                      dataKey={item.category} 
-                      stroke={categoryColors[index]} 
-                      strokeWidth={2}
-                      connectNulls={false}
-                      dot={{ r: 4 }}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            );
-          })()}
-        </CardContent>
-      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Category Spending Horizontal Bar Chart */}
@@ -1101,6 +976,144 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                   </tbody>
                 </table>
               </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
+      {/* Category Monthly Change Chart - Moved to bottom with improved scaling */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Category Monthly Change (%)
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-2">
+            *Values are capped at ±200% to maintain chart readability
+          </p>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            // Calculate monthly spending by category and percentage changes
+            const monthlyByCategory = filteredTransactions.reduce((acc, transaction) => {
+              const date = new Date(transaction.transaction_timestamp_local);
+              const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+              const category = transaction.category || 'Uncategorized';
+              
+              if (!acc[category]) {
+                acc[category] = {};
+              }
+              
+              acc[category][monthKey] = (acc[category][monthKey] || 0) + Math.abs(transaction.amount);
+              return acc;
+            }, {} as Record<string, Record<string, number>>);
+
+            // Get last 6 months sorted
+            const allMonths = [...new Set(
+              filteredTransactions.map(t => {
+                const date = new Date(t.transaction_timestamp_local);
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+              })
+            )].sort().slice(-6);
+
+            // Calculate percentage changes for each category
+            const categoryChanges = Object.keys(monthlyByCategory).map(category => {
+              const monthlyData = allMonths.map(month => {
+                const currentAmount = monthlyByCategory[category][month] || 0;
+                const prevMonthIndex = allMonths.indexOf(month) - 1;
+                const prevAmount = prevMonthIndex >= 0 ? (monthlyByCategory[category][allMonths[prevMonthIndex]] || 0) : 0;
+                
+                let change = 0;
+                if (prevAmount > 0) {
+                  change = ((currentAmount - prevAmount) / prevAmount) * 100;
+                } else if (currentAmount > 0 && prevAmount === 0) {
+                  change = 200; // Cap new categories at 200%
+                }
+                
+                // Cap values at ±200% to prevent extreme outliers from ruining the scale
+                const cappedChange = Math.max(-200, Math.min(200, change));
+                
+                return {
+                  month,
+                  change: currentAmount > 0 ? cappedChange : null, // Only show changes when there's current spending
+                  formattedMonth: (() => {
+                    const [year, monthNum] = month.split('-');
+                    const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                    return date.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' });
+                  })()
+                };
+              }).filter(item => item.change !== null); // Remove months with no spending
+
+              return {
+                category,
+                data: monthlyData
+              };
+            }).filter(item => item.data.length > 1); // Only include categories with at least 2 months of data
+
+            // Get top 5 categories by total spending for cleaner visualization
+            const topCategories = categoryChanges
+              .map(item => ({
+                ...item,
+                totalSpending: Object.values(monthlyByCategory[item.category] || {}).reduce((sum, val) => sum + val, 0)
+              }))
+              .sort((a, b) => b.totalSpending - a.totalSpending)
+              .slice(0, 5);
+
+            // Prepare chart data
+            const chartData = allMonths.map(month => {
+              const dataPoint: any = {
+                month: (() => {
+                  const [year, monthNum] = month.split('-');
+                  const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                  return date.toLocaleDateString('es-CL', { month: 'short', year: '2-digit' });
+                })()
+              };
+
+              topCategories.forEach(({ category, data }) => {
+                const monthData = data.find(d => d.month === month);
+                dataPoint[category] = monthData ? monthData.change : null;
+              });
+
+              return dataPoint;
+            });
+
+            const categoryColors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1'];
+
+            return (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis 
+                    domain={[-200, 200]}
+                    tickFormatter={(value) => `${value.toFixed(0)}%`}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [
+                      value !== null ? `${value > 0 ? '+' : ''}${value.toFixed(1)}%` : 'No data',
+                      'Change'
+                    ]}
+                    labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                  />
+                  <Legend />
+                  {topCategories.map((item, index) => (
+                    <Line 
+                      key={item.category}
+                      type="monotone" 
+                      dataKey={item.category} 
+                      stroke={categoryColors[index]} 
+                      strokeWidth={2}
+                      connectNulls={false}
+                      dot={{ r: 4 }}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
             );
           })()}
         </CardContent>
