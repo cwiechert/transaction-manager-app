@@ -531,41 +531,57 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Category Spending Pie Chart */}
+        {/* Category Spending Horizontal Bar Chart */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <PieChart className="h-5 w-5" />
+              <BarChart className="h-5 w-5" />
               Spending by Category
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <RechartsPieChart>
-                <Pie
-                  data={categoryChartData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="amount"
-                  label={({ category, percent }) => `${category} (${(percent * 100).toFixed(0)}%)`}
-                >
-                  {categoryChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) => [
+            <ResponsiveContainer width="100%" height={400}>
+              <RechartsBarChart
+                data={categoryChartData}
+                layout="horizontal"
+                margin={{ top: 20, right: 80, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  type="number"
+                  tickFormatter={(value) => 
                     new Intl.NumberFormat('es-CL', {
                       style: 'currency',
                       currency: 'CLP',
                       minimumFractionDigits: 0,
-                    }).format(value),
-                    'Amount'
-                  ]}
+                      notation: 'compact'
+                    }).format(value)
+                  }
                 />
-              </RechartsPieChart>
+                <YAxis 
+                  type="category"
+                  dataKey="category"
+                  width={120}
+                />
+                <Tooltip
+                  formatter={(value: number, name, props) => {
+                    const total = categoryChartData.reduce((sum, item) => sum + item.amount, 0);
+                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                    return [
+                      `${new Intl.NumberFormat('es-CL', {
+                        style: 'currency',
+                        currency: 'CLP',
+                        minimumFractionDigits: 0,
+                      }).format(value)} (${percentage}%)`,
+                      'Amount'
+                    ];
+                  }}
+                />
+                <Bar 
+                  dataKey="amount" 
+                  fill="#8884d8"
+                />
+              </RechartsBarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -610,24 +626,40 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
         </Card>
       </div>
 
-      {/* Category Comparison Bar Chart */}
+      {/* Monthly Category Comparison */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart className="h-5 w-5" />
-            Top Categories Comparison
+            Monthly Spending by Category
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={400}>
-            <RechartsBarChart data={categoryChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <RechartsBarChart 
+              data={(() => {
+                // Create monthly data structure with categories
+                const monthlyByCategory = filteredTransactions.reduce((acc, transaction) => {
+                  const date = new Date(transaction.transaction_timestamp_local);
+                  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                  const category = transaction.category || 'Uncategorized';
+                  
+                  if (!acc[monthKey]) {
+                    acc[monthKey] = { month: monthKey };
+                  }
+                  
+                  acc[monthKey][category] = (acc[monthKey][category] || 0) + Math.abs(transaction.amount);
+                  return acc;
+                }, {} as Record<string, any>);
+
+                return Object.values(monthlyByCategory)
+                  .sort((a: any, b: any) => a.month.localeCompare(b.month))
+                  .slice(-6); // Last 6 months
+              })()}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="category" 
-                angle={-45}
-                textAnchor="end"
-                height={100}
-              />
+              <XAxis dataKey="month" />
               <YAxis 
                 tickFormatter={(value) => 
                   new Intl.NumberFormat('es-CL', {
@@ -648,7 +680,16 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                   'Amount'
                 ]}
               />
-              <Bar dataKey="amount" fill="#8884d8" />
+              <Legend />
+              {/* Generate bars for each category */}
+              {uniqueCategories.slice(0, 8).map((category, index) => (
+                <Bar 
+                  key={category}
+                  dataKey={category} 
+                  stackId="categories"
+                  fill={colors[index % colors.length]} 
+                />
+              ))}
             </RechartsBarChart>
           </ResponsiveContainer>
         </CardContent>
