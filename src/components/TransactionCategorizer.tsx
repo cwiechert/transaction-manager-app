@@ -376,8 +376,8 @@ const CategorizationRulesManager = ({
   // Filter and sort rules
   const filteredAndSortedRules = rules
     .filter(rule => {
-      const matchesPaymentReason = !filters.payment_reason || rule.payment_reason === filters.payment_reason;
-      const matchesCategory = !filters.category || rule.category === filters.category;
+      const matchesPaymentReason = filters.payment_reason === 'all' || !filters.payment_reason || rule.payment_reason === filters.payment_reason;
+      const matchesCategory = filters.category === 'all' || !filters.category || rule.category === filters.category;
       return matchesPaymentReason && matchesCategory;
     })
     .sort((a, b) => {
@@ -461,14 +461,14 @@ const CategorizationRulesManager = ({
         <div className="space-y-2">
           <Label htmlFor="payment-reason-filter">Filter by Payment Reason</Label>
           <Select
-            value={filters.payment_reason}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, payment_reason: value }))}
+            value={filters.payment_reason || 'all'}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, payment_reason: value === 'all' ? '' : value }))}
           >
             <SelectTrigger>
               <SelectValue placeholder="All payment reasons" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All payment reasons</SelectItem>
+              <SelectItem value="all">All payment reasons</SelectItem>
               {uniquePaymentReasons.map((reason) => (
                 <SelectItem key={reason} value={reason}>
                   {reason}
@@ -480,14 +480,14 @@ const CategorizationRulesManager = ({
         <div className="space-y-2">
           <Label htmlFor="category-filter">Filter by Category</Label>
           <Select
-            value={filters.category}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
+            value={filters.category || 'all'}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, category: value === 'all' ? '' : value }))}
           >
             <SelectTrigger>
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All categories</SelectItem>
+              <SelectItem value="all">All categories</SelectItem>
               {uniqueCategories.map((category) => (
                 <SelectItem key={category} value={category}>
                   {category}
