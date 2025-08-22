@@ -2029,6 +2029,8 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [description, setDescription] = useState(transaction.description || "");
   const [applyToAll, setApplyToAll] = useState(false);
+  const [amount, setAmount] = useState(transaction.amount.toString());
+  const [isEditingAmount, setIsEditingAmount] = useState(false);
 
   // Determine if this is a "Transferencia a/para Terceros" case (handle both singular/plural variants)
   const isTransferToThird = transaction.transaction_type === "Transferencia" &&
@@ -2071,6 +2073,44 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
     if (!finalCategory) return;
     
     onUpdate(transaction.Id, finalCategory, description.trim(), applyToAll, effectivePaymentReason);
+  };
+
+  const handleAmountSubmit = async () => {
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      setAmount(transaction.amount.toString());
+      setIsEditingAmount(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ amount: numericAmount })
+        .eq('Id', transaction.Id);
+
+      if (error) {
+        console.error('Error updating amount:', error);
+        setAmount(transaction.amount.toString());
+      } else {
+        // Update the transaction object locally
+        transaction.amount = numericAmount;
+      }
+    } catch (error) {
+      console.error('Error updating amount:', error);
+      setAmount(transaction.amount.toString());
+    }
+
+    setIsEditingAmount(false);
+  };
+
+  const handleAmountKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleAmountSubmit();
+    } else if (e.key === 'Escape') {
+      setAmount(transaction.amount.toString());
+      setIsEditingAmount(false);
+    }
   };
 
   const formatAmount = (amount: number, currency: string) => {
@@ -2122,12 +2162,37 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
           </div>
           <div className="text-right ml-4">
             <div className="flex items-baseline justify-end gap-2">
-              <p className="text-lg font-bold text-foreground">
-                {formatAmount(transaction.amount, transaction.currency)}
-              </p>
-              <span className="text-xs font-medium text-muted-foreground">
-                {transaction.currency}
-              </span>
+              {isEditingAmount ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    onBlur={handleAmountSubmit}
+                    onKeyDown={handleAmountKeyDown}
+                    className="w-24 text-right text-lg font-bold"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    autoFocus
+                  />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {transaction.currency}
+                  </span>
+                </div>
+              ) : (
+                <div 
+                  className="flex items-baseline gap-2 cursor-pointer hover:bg-muted/50 rounded px-2 py-1 -mx-2 -my-1"
+                  onClick={() => setIsEditingAmount(true)}
+                  title="Click to edit amount"
+                >
+                  <p className="text-lg font-bold text-foreground">
+                    {formatAmount(parseFloat(amount), transaction.currency)}
+                  </p>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {transaction.currency}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </CardTitle>
