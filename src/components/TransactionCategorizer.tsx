@@ -1343,7 +1343,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
-                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-bold text-primary-foreground drop-shadow-sm">
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-bold text-background drop-shadow-sm">
                         {percentage.toFixed(1)}%
                       </div>
                     </div>
