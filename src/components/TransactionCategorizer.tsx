@@ -236,7 +236,7 @@ export const TransactionCategorizer = () => {
           <div className="flex items-center gap-2">
             <Button 
               onClick={() => setShowRules(!showRules)}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               size="sm"
             >
               {showRules ? 'Hide Rules' : 'Manage Rules'}
@@ -1343,7 +1343,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
-                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-bold text-white drop-shadow-sm">
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs font-bold text-primary-foreground drop-shadow-sm">
                         {percentage.toFixed(1)}%
                       </div>
                     </div>
