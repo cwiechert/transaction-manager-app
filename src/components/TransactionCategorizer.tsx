@@ -1336,16 +1336,19 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 return (
                   <div key={item.category} className="flex items-center gap-4">
                     <div className="w-32 text-sm font-medium truncate">{item.category}</div>
-                    <div className="flex-1">
+                    <div className="flex-1 relative">
                       <div className="w-full bg-muted h-8 rounded-md overflow-hidden">
                         <div 
                           className="h-full bg-blue-500 transition-all duration-300" 
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
-                    </div>
-                    <div className="w-12 text-right text-sm font-bold text-foreground">
-                      {percentage.toFixed(1)}%
+                      <div 
+                        className="absolute top-1/2 transform -translate-y-1/2 text-xs font-bold text-foreground ml-2"
+                        style={{ left: `${Math.max(percentage, 15)}%` }}
+                      >
+                        {percentage.toFixed(1)}%
+                      </div>
                     </div>
                     <div className="w-24 text-right text-sm font-medium">
                       {new Intl.NumberFormat('es-CL', {
