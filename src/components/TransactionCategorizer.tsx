@@ -41,6 +41,7 @@ interface CategorizationRule {
   id: string;
   payment_reason: string;
   category: string;
+  created_at: string;
   updated_at: string;
   user_id: string;
 }
@@ -141,8 +142,8 @@ export const TransactionCategorizer = () => {
     try {
       const { data, error } = await supabase
         .from('categorization_rules')
-        .select('id, payment_reason, category, updated_at, user_id')
-        .order('updated_at', { ascending: false });
+        .select('id, payment_reason, category, created_at, updated_at, user_id')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setCategorizationRules(data || []);
@@ -380,7 +381,7 @@ const CategorizationRulesManager = ({
   allTransactions: Transaction[]
 }) => {
   const [editingRule, setEditingRule] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<keyof CategorizationRule | 'event_count'>('updated_at');
+  const [sortField, setSortField] = useState<keyof CategorizationRule | 'event_count'>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState({
     payment_reason: '',
@@ -609,12 +610,12 @@ const CategorizationRulesManager = ({
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => handleSort('updated_at')}
+                    onClick={() => handleSort('created_at')}
                     className="font-semibold h-auto p-0 hover:bg-transparent"
                   >
-                    Updated At
+                    Created At
                     <span className="ml-2">
-                      {sortField === 'updated_at' ? (
+                      {sortField === 'created_at' ? (
                         sortDirection === 'asc' ? '↑' : '↓'
                       ) : '↕'}
                     </span>
@@ -749,7 +750,7 @@ const CategorizationRuleRow = ({
         )}
       </td>
       <td className="p-4 text-sm text-muted-foreground">
-        {new Date(rule.updated_at).toLocaleString()}
+        {new Date(rule.created_at).toLocaleString()}
       </td>
       <td className="p-4 text-center">
         <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
