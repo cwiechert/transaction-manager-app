@@ -887,6 +887,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
     .sort((a, b) => a.month.localeCompare(b.month))
     .slice(-6); // Last 6 months
 
+
   // Get unique categories from transactions
   const uniqueCategories = [...new Set(filteredTransactions.map(t => t.category).filter(Boolean))];
 
@@ -1302,21 +1303,28 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                   }
                 />
                 <Tooltip
-                  formatter={(value: number) => [
-                    new Intl.NumberFormat('es-CL', {
-                      style: 'currency',
-                      currency: 'CLP',
-                      minimumFractionDigits: 0,
-                    }).format(value),
-                    'Amount'
-                  ]}
-                  labelFormatter={(month: string) => {
-                    const [year, monthNum] = month.split('-');
-                    const date = new Date(parseInt(year), parseInt(monthNum) - 1);
-                    return date.toLocaleDateString('es-CL', { 
-                      month: 'long', 
-                      year: 'numeric' 
-                    });
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const [year, monthNum] = (label as string).split('-');
+                      const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                      const formattedDate = date.toLocaleDateString('es-CL', { 
+                        month: 'long', 
+                        year: 'numeric' 
+                      });
+                      const amount = new Intl.NumberFormat('es-CL', {
+                        style: 'currency',
+                        currency: 'CLP',
+                        minimumFractionDigits: 0,
+                      }).format(payload[0].value as number);
+                      
+                      return (
+                        <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
+                          <p className="font-medium text-popover-foreground">{formattedDate}</p>
+                          <p className="text-primary font-bold">{amount}</p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
                 <Line type="monotone" dataKey="amount" stroke="#8884d8" strokeWidth={2} />
