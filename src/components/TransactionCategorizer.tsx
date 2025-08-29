@@ -838,6 +838,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
       const transactionDate = new Date(transaction.transaction_timestamp_local);
       const cutoffDate = new Date();
       cutoffDate.setMonth(cutoffDate.getMonth() - selectedMonths);
+      cutoffDate.setDate(1); // Set to first day of the month for whole month granularity
+      cutoffDate.setHours(0, 0, 0, 0); // Set to start of day
       
       if (transactionDate < cutoffDate) {
         return false;
@@ -1813,6 +1815,8 @@ const CategoryAnalysis = ({ transactions, usdToClp }: { transactions: Transactio
     const transactionDate = new Date(transaction.transaction_timestamp_local);
     const cutoffDate = new Date();
     cutoffDate.setMonth(cutoffDate.getMonth() - selectedMonths);
+    cutoffDate.setDate(1); // Set to first day of the month for whole month granularity
+    cutoffDate.setHours(0, 0, 0, 0); // Set to start of day
     
     if (transactionDate < cutoffDate) {
       return false;
