@@ -1300,6 +1300,14 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                     }).format(value),
                     'Amount'
                   ]}
+                  labelFormatter={(month: string) => {
+                    const [year, monthNum] = month.split('-');
+                    const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                    return date.toLocaleDateString('es-CL', { 
+                      month: 'long', 
+                      year: 'numeric' 
+                    });
+                  }}
                 />
                 <Line type="monotone" dataKey="amount" stroke="#8884d8" strokeWidth={2} />
               </LineChart>
