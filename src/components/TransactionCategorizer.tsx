@@ -1280,7 +1280,17 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthlyChartData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
+                <XAxis 
+                  dataKey="month" 
+                  tickFormatter={(month) => {
+                    const [year, monthNum] = month.split('-');
+                    const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                    return date.toLocaleDateString('es-CL', { 
+                      month: 'short', 
+                      year: '2-digit' 
+                    });
+                  }}
+                />
                 <YAxis 
                   tickFormatter={(value) => 
                     new Intl.NumberFormat('es-CL', {
