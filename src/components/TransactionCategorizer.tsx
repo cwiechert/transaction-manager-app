@@ -12,8 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Loader2, Edit, BarChart3, PieChart, TrendingUp, LogOut, Check, ChevronsUpDown } from "lucide-react";
-import { VisualizationSettings } from "@/components/VisualizationSettings";
-import { TransactionVisualizationsFixed } from "@/components/TransactionVisualizationsFixed";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -356,7 +354,7 @@ export const TransactionCategorizer = () => {
               </TabsList>
               
               <TabsContent value="overview" className="space-y-6">
-                <TransactionVisualizationsFixed transactions={allTransactions} />
+                <TransactionVisualizations transactions={allTransactions} />
               </TabsContent>
               
               <TabsContent value="category-analysis" className="space-y-6">
@@ -799,32 +797,12 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   // Get all unique categories
   const allCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
   
-  // Default filter states - initialize with proper defaults
+  // Filter states - exclude "Inversion" and "Otros" by default
   const defaultExcludedCategories = ["Inversion", "Otros"];
-  const initialAvailableCategories = allCategories.filter(cat => !defaultExcludedCategories.includes(cat));
-  
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(initialAvailableCategories);
-  const [selectedMonths, setSelectedMonths] = useState<number>(3);
+  const availableCategories = allCategories.filter(cat => !defaultExcludedCategories.includes(cat));
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(availableCategories);
+  const [selectedMonths, setSelectedMonths] = useState<number>(3); // Default to last 3 months
   const [categoryChartView, setCategoryChartView] = useState<'filtered' | 'current'>('filtered');
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-
-  // Update selectedCategories when allCategories changes and settings are loaded
-  useEffect(() => {
-    if (!settingsLoaded) {
-      const availableCategories = allCategories.filter(cat => !defaultExcludedCategories.includes(cat));
-      setSelectedCategories(availableCategories);
-    }
-  }, [allCategories, settingsLoaded]);
-
-  // Handle settings changes from VisualizationSettings component
-  const handleSettingsChange = (settings: { defaultMonths: number; defaultCategoryView: 'filtered' | 'current'; defaultExcludedCategories: string[] }) => {
-    const availableCategories = allCategories.filter(cat => !settings.defaultExcludedCategories.includes(cat));
-    setSelectedCategories(availableCategories);
-    setSelectedMonths(settings.defaultMonths);
-    setCategoryChartView(settings.defaultCategoryView);
-    setSettingsLoaded(true);
-  };
   const [usdToClp, setUsdToClp] = useState<number>(900);
 
   useEffect(() => {
@@ -848,19 +826,9 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
       return false;
     }
     
-    // Category filter - CRITICAL FIX: Only filter if categories are selected AND transaction has a category
-    if (selectedCategories.length > 0) {
-      // If transaction has no category, exclude it when categories are filtered
-      if (!transaction.category) {
-        return false;
-      }
-      // If transaction category is not in selected categories, exclude it
+    // Category filter - if we have selected categories, only show those
+    if (selectedCategories.length > 0 && transaction.category) {
       if (!selectedCategories.includes(transaction.category)) {
-        return false;
-      }
-    } else {
-      // If no categories are selected, only show transactions with categories
-      if (!transaction.category) {
         return false;
       }
     }
@@ -879,16 +847,6 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
     }
     
     return true;
-  });
-
-  console.log('Debug Filter Info:', {
-    totalTransactions: transactions.length,
-    allCategories: allCategories.length,
-    selectedCategories: selectedCategories.length,
-    selectedCategoriesList: selectedCategories,
-    selectedMonths,
-    filteredTransactions: filteredTransactions.length,
-    sampleTransaction: transactions[0]
   });
 
   // Calculate current vs last month comparison
@@ -960,12 +918,6 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
 
   return (
     <div className="space-y-6">
-      {/* Default Settings */}
-      <VisualizationSettings 
-        allCategories={allCategories} 
-        onSettingsChange={handleSettingsChange} 
-      />
-      
       {/* Filter Controls */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-card rounded-lg border">
         <div className="space-y-2">
@@ -981,7 +933,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 }
               }}
             >
-              {selectedCategories.length === allCategories.filter(cat => !["Inversion", "Otros"].includes(cat)).length 
+              {selectedCategories.length === availableCategories.length 
                 ? "All categories (excluding Inversion & Otros)" 
                 : selectedCategories.length === 0
                   ? "No categories selected"
@@ -997,10 +949,10 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                 <div className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
                   <Checkbox
                     id="all-categories"
-                    checked={selectedCategories.length === allCategories.filter(cat => !["Inversion", "Otros"].includes(cat)).length}
+                    checked={selectedCategories.length === availableCategories.length}
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        setSelectedCategories(allCategories.filter(cat => !["Inversion", "Otros"].includes(cat)));
+                        setSelectedCategories(availableCategories);
                       } else {
                         setSelectedCategories([]);
                       }
