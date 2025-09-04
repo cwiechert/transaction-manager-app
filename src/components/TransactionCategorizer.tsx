@@ -798,10 +798,22 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   // Get all unique categories
   const allCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
   
-  // Filter states - will be set by settings
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  // Default filter states - initialize with proper defaults
+  const defaultExcludedCategories = ["Inversion", "Otros"];
+  const initialAvailableCategories = allCategories.filter(cat => !defaultExcludedCategories.includes(cat));
+  
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(initialAvailableCategories);
   const [selectedMonths, setSelectedMonths] = useState<number>(3);
   const [categoryChartView, setCategoryChartView] = useState<'filtered' | 'current'>('filtered');
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // Update selectedCategories when allCategories changes and settings are loaded
+  useEffect(() => {
+    if (!settingsLoaded) {
+      const availableCategories = allCategories.filter(cat => !defaultExcludedCategories.includes(cat));
+      setSelectedCategories(availableCategories);
+    }
+  }, [allCategories, settingsLoaded]);
 
   // Handle settings changes from VisualizationSettings component
   const handleSettingsChange = (settings: { defaultMonths: number; defaultCategoryView: 'filtered' | 'current'; defaultExcludedCategories: string[] }) => {
@@ -809,6 +821,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
     setSelectedCategories(availableCategories);
     setSelectedMonths(settings.defaultMonths);
     setCategoryChartView(settings.defaultCategoryView);
+    setSettingsLoaded(true);
   };
   const [usdToClp, setUsdToClp] = useState<number>(900);
 

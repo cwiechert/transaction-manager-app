@@ -31,18 +31,24 @@ export const VisualizationSettings = ({ allCategories, onSettingsChange }: Visua
 
   // Load settings from localStorage on component mount
   useEffect(() => {
-    const savedSettings = localStorage.getItem('visualization-default-settings');
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings(parsed);
-        onSettingsChange(parsed);
-      } catch (error) {
-        console.error('Error parsing saved settings:', error);
+    // Small delay to ensure parent component is ready
+    const timer = setTimeout(() => {
+      const savedSettings = localStorage.getItem('visualization-default-settings');
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          setSettings(parsed);
+          onSettingsChange(parsed);
+        } catch (error) {
+          console.error('Error parsing saved settings:', error);
+          onSettingsChange(DEFAULT_SETTINGS);
+        }
+      } else {
+        onSettingsChange(DEFAULT_SETTINGS);
       }
-    } else {
-      onSettingsChange(DEFAULT_SETTINGS);
-    }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [onSettingsChange]);
 
   const handleSaveSettings = () => {
