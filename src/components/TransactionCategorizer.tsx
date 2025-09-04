@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Loader2, Edit, BarChart3, PieChart, TrendingUp, LogOut, Check, ChevronsUpDown } from "lucide-react";
 import { VisualizationSettings } from "@/components/VisualizationSettings";
+import { TransactionVisualizationsFixed } from "@/components/TransactionVisualizationsFixed";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -355,7 +356,7 @@ export const TransactionCategorizer = () => {
               </TabsList>
               
               <TabsContent value="overview" className="space-y-6">
-                <TransactionVisualizations transactions={allTransactions} />
+                <TransactionVisualizationsFixed transactions={allTransactions} />
               </TabsContent>
               
               <TabsContent value="category-analysis" className="space-y-6">
@@ -806,6 +807,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
   const [selectedMonths, setSelectedMonths] = useState<number>(3);
   const [categoryChartView, setCategoryChartView] = useState<'filtered' | 'current'>('filtered');
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
 
   // Update selectedCategories when allCategories changes and settings are loaded
   useEffect(() => {
@@ -846,9 +848,19 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
       return false;
     }
     
-    // Category filter - if we have selected categories, only show those
-    if (selectedCategories.length > 0 && transaction.category) {
+    // Category filter - CRITICAL FIX: Only filter if categories are selected AND transaction has a category
+    if (selectedCategories.length > 0) {
+      // If transaction has no category, exclude it when categories are filtered
+      if (!transaction.category) {
+        return false;
+      }
+      // If transaction category is not in selected categories, exclude it
       if (!selectedCategories.includes(transaction.category)) {
+        return false;
+      }
+    } else {
+      // If no categories are selected, only show transactions with categories
+      if (!transaction.category) {
         return false;
       }
     }
@@ -867,6 +879,16 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
     }
     
     return true;
+  });
+
+  console.log('Debug Filter Info:', {
+    totalTransactions: transactions.length,
+    allCategories: allCategories.length,
+    selectedCategories: selectedCategories.length,
+    selectedCategoriesList: selectedCategories,
+    selectedMonths,
+    filteredTransactions: filteredTransactions.length,
+    sampleTransaction: transactions[0]
   });
 
   // Calculate current vs last month comparison
