@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 interface VisualizationDefaultSettings {
   defaultTimePeriod: number;
   defaultSelectedCategories: string[];
-  categoryChartView: 'pie' | 'bar';
 }
 
 interface VisualizationSettingsProps {
@@ -23,8 +22,7 @@ const STORAGE_KEY = 'visualizationDefaultSettings';
 
 const defaultSettings: VisualizationDefaultSettings = {
   defaultTimePeriod: 3,
-  defaultSelectedCategories: [],
-  categoryChartView: 'pie'
+  defaultSelectedCategories: []
 };
 
 export const VisualizationSettings = ({ categories, onSettingsChange }: VisualizationSettingsProps) => {
@@ -150,22 +148,6 @@ export const VisualizationSettings = ({ categories, onSettingsChange }: Visualiz
               </Select>
             </div>
 
-            {/* Default Chart View */}
-            <div className="space-y-2">
-              <Label>Default Chart View</Label>
-              <Select 
-                value={settings.categoryChartView} 
-                onValueChange={(value: 'pie' | 'bar') => setSettings(prev => ({ ...prev, categoryChartView: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pie">Pie Chart</SelectItem>
-                  <SelectItem value="bar">Bar Chart</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
             {/* Default Categories */}
             <div className="space-y-3">

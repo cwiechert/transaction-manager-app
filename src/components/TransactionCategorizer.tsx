@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { VisualizationSettings } from "@/components/VisualizationSettings";
-import { Loader2, Edit, BarChart3, PieChart, TrendingUp, LogOut, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, Edit, BarChart3, TrendingUp, LogOut, Check, ChevronsUpDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -23,7 +23,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Tooltip } from 'recharts';
+import { ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Tooltip } from 'recharts';
 
 interface Transaction {
   Id: string;
@@ -59,8 +59,7 @@ export const TransactionCategorizer = () => {
   const [showRules, setShowRules] = useState(false);
   const [visualizationSettings, setVisualizationSettings] = useState({
     defaultTimePeriod: 3,
-    defaultSelectedCategories: [] as string[],
-    categoryChartView: 'pie' as 'pie' | 'bar'
+    defaultSelectedCategories: [] as string[]
   });
   const { toast } = useToast();
   const { user, signOut } = useAuth();
@@ -812,7 +811,6 @@ const CategorizationRuleRow = ({
 interface DefaultVisualizationSettings {
   defaultTimePeriod: number;
   defaultSelectedCategories: string[];
-  categoryChartView: 'pie' | 'bar';
 }
 
 const TransactionVisualizations = ({ 
@@ -843,16 +841,16 @@ const TransactionVisualizations = ({
   const [categoryChartView, setCategoryChartView] = useState<'filtered' | 'current'>('filtered');
   const [usdToClp, setUsdToClp] = useState<number>(900);
 
-  // Apply default settings when they change
+  // Apply default settings only on initial load, not when they change
   useEffect(() => {
-    if (defaultSettings) {
+    if (defaultSettings && !selectedCategories.length) {
       if (defaultSettings.defaultSelectedCategories.length > 0) {
         const validCategories = defaultSettings.defaultSelectedCategories.filter(cat => availableCategories.includes(cat));
         setSelectedCategories(validCategories);
       }
       setSelectedMonths(defaultSettings.defaultTimePeriod);
     }
-  }, [defaultSettings, availableCategories]);
+  }, [defaultSettings?.defaultSelectedCategories, defaultSettings?.defaultTimePeriod, availableCategories]);
 
   useEffect(() => {
     (async () => {
