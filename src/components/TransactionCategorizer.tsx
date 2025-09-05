@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { VisualizationSettings } from "@/components/VisualizationSettings";
 import { Loader2, Edit, BarChart3, PieChart, TrendingUp, LogOut, Check, ChevronsUpDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -56,6 +57,11 @@ export const TransactionCategorizer = () => {
   const [updating, setUpdating] = useState<string | null>(null);
   const [transactionLimit, setTransactionLimit] = useState(10);
   const [showRules, setShowRules] = useState(false);
+  const [visualizationSettings, setVisualizationSettings] = useState({
+    defaultTimePeriod: 3,
+    defaultSelectedCategories: [] as string[],
+    categoryChartView: 'pie' as 'pie' | 'bar'
+  });
   const { toast } = useToast();
   const { user, signOut } = useAuth();
 
@@ -344,6 +350,13 @@ export const TransactionCategorizer = () => {
           </TabsContent>
 
           <TabsContent value="visualizations" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Visualizations</h2>
+              <VisualizationSettings 
+                categories={categories}
+                onSettingsChange={setVisualizationSettings}
+              />
+            </div>
             <Tabs defaultValue="overview" className="w-full">
               <TabsList className="grid w-full grid-cols-2 gap-1">
                 <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-4">Overview</TabsTrigger>
@@ -354,7 +367,10 @@ export const TransactionCategorizer = () => {
               </TabsList>
               
               <TabsContent value="overview" className="space-y-6">
-                <TransactionVisualizations transactions={allTransactions} />
+                <TransactionVisualizations 
+                  transactions={allTransactions} 
+                  defaultSettings={visualizationSettings}
+                />
               </TabsContent>
               
               <TabsContent value="category-analysis" className="space-y-6">
@@ -793,17 +809,50 @@ const CategorizationRuleRow = ({
 };
 
 // Visualization components
-const TransactionVisualizations = ({ transactions }: { transactions: Transaction[] }) => {
+interface DefaultVisualizationSettings {
+  defaultTimePeriod: number;
+  defaultSelectedCategories: string[];
+  categoryChartView: 'pie' | 'bar';
+}
+
+const TransactionVisualizations = ({ 
+  transactions, 
+  defaultSettings 
+}: { 
+  transactions: Transaction[];
+  defaultSettings?: DefaultVisualizationSettings;
+}) => {
   // Get all unique categories
   const allCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
   
   // Filter states - exclude "Inversion" and "Otros" by default
   const defaultExcludedCategories = ["Inversion", "Otros"];
   const availableCategories = allCategories.filter(cat => !defaultExcludedCategories.includes(cat));
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(availableCategories);
-  const [selectedMonths, setSelectedMonths] = useState<number>(3); // Default to last 3 months
+  
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
+    if (defaultSettings?.defaultSelectedCategories.length) {
+      return defaultSettings.defaultSelectedCategories.filter(cat => availableCategories.includes(cat));
+    }
+    return availableCategories;
+  });
+  
+  const [selectedMonths, setSelectedMonths] = useState<number>(() => {
+    return defaultSettings?.defaultTimePeriod || 3;
+  });
+  
   const [categoryChartView, setCategoryChartView] = useState<'filtered' | 'current'>('filtered');
   const [usdToClp, setUsdToClp] = useState<number>(900);
+
+  // Apply default settings when they change
+  useEffect(() => {
+    if (defaultSettings) {
+      if (defaultSettings.defaultSelectedCategories.length > 0) {
+        const validCategories = defaultSettings.defaultSelectedCategories.filter(cat => availableCategories.includes(cat));
+        setSelectedCategories(validCategories);
+      }
+      setSelectedMonths(defaultSettings.defaultTimePeriod);
+    }
+  }, [defaultSettings, availableCategories]);
 
   useEffect(() => {
     (async () => {
@@ -922,30 +971,23 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-card rounded-lg border">
         <div className="space-y-2">
           <Label>Categories</Label>
-          <div className="relative">
-            <Button
-              variant="outline"
-              className="w-full justify-between"
-              onClick={() => {
-                const content = document.getElementById('category-dropdown');
-                if (content) {
-                  content.style.display = content.style.display === 'none' ? 'block' : 'none';
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between"
+              >
+                {selectedCategories.length === availableCategories.length 
+                  ? "All categories (excluding Inversion & Otros)" 
+                  : selectedCategories.length === 0
+                    ? "No categories selected"
+                    : `${selectedCategories.length} categories selected`
                 }
-              }}
-            >
-              {selectedCategories.length === availableCategories.length 
-                ? "All categories (excluding Inversion & Otros)" 
-                : selectedCategories.length === 0
-                  ? "No categories selected"
-                  : `${selectedCategories.length} categories selected`
-              }
-            </Button>
-            <div 
-              id="category-dropdown"
-              className="absolute top-full left-0 w-full mt-1 bg-popover border rounded-md shadow-md z-50 max-h-48 overflow-y-auto"
-              style={{ display: 'none' }}
-            >
-              <div className="p-2 space-y-2">
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0">
+              <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
                 <div className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
                   <Checkbox
                     id="all-categories"
@@ -960,7 +1002,7 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                   />
                   <Label htmlFor="all-categories">All categories (excluding Inversion & Otros)</Label>
                 </div>
-                {allCategories.map(category => (
+                {availableCategories.map(category => (
                   <div key={category} className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
                     <Checkbox
                       id={`category-${category}`}
@@ -977,8 +1019,8 @@ const TransactionVisualizations = ({ transactions }: { transactions: Transaction
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
+            </PopoverContent>
+          </Popover>
           {selectedCategories.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {selectedCategories.map(category => (
