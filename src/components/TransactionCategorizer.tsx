@@ -823,9 +823,8 @@ const TransactionVisualizations = ({
   // Get all unique categories
   const allCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
   
-  // Filter states - exclude "Inversion" and "Otros" by default
-  const defaultExcludedCategories = ["Inversion", "Otros"];
-  const availableCategories = allCategories.filter(cat => !defaultExcludedCategories.includes(cat));
+  // Use all categories (no exclusions)
+  const availableCategories = allCategories;
   
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
     if (defaultSettings?.defaultSelectedCategories.length) {
@@ -976,7 +975,7 @@ const TransactionVisualizations = ({
                 className="w-full justify-between"
               >
                 {selectedCategories.length === availableCategories.length 
-                  ? "All categories (excluding Inversion & Otros)" 
+                  ? "All categories" 
                   : selectedCategories.length === 0
                     ? "No categories selected"
                     : `${selectedCategories.length} categories selected`
@@ -998,7 +997,7 @@ const TransactionVisualizations = ({
                       }
                     }}
                   />
-                  <Label htmlFor="all-categories">All categories (excluding Inversion & Otros)</Label>
+                  <Label htmlFor="all-categories">All categories</Label>
                 </div>
                 {availableCategories.map(category => (
                   <div key={category} className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
