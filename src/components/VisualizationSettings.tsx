@@ -7,63 +7,48 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Settings, Save, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface VisualizationDefaultSettings {
-  defaultTimePeriod: number;
-  defaultSelectedCategories: string[];
-}
+import { useUserPreferences, VisualizationSettings as SettingsType } from "@/hooks/useUserPreferences";
 
 interface VisualizationSettingsProps {
   categories: string[];
-  onSettingsChange: (settings: VisualizationDefaultSettings) => void;
+  onSettingsChange: (settings: SettingsType) => void;
 }
 
-const STORAGE_KEY = 'visualizationDefaultSettings';
-
-const defaultSettings: VisualizationDefaultSettings = {
-  defaultTimePeriod: 3,
-  defaultSelectedCategories: []
-};
-
 export const VisualizationSettings = ({ categories, onSettingsChange }: VisualizationSettingsProps) => {
-  const [settings, setSettings] = useState<VisualizationDefaultSettings>(defaultSettings);
+  const { settings, loading, saveSettings: saveToDatabase, resetToDefaults: resetInDatabase } = useUserPreferences();
+  const [localSettings, setLocalSettings] = useState<SettingsType>(settings);
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
 
   // Use all available categories
   const availableCategories = categories;
 
+  // Update local settings when database settings change
   useEffect(() => {
-    // Load settings from localStorage on component mount
-    const savedSettings = localStorage.getItem(STORAGE_KEY);
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings(parsed);
-        onSettingsChange(parsed);
-      } catch (error) {
-        console.error('Failed to parse saved visualization settings:', error);
-      }
-    } else {
-      // Set default to all available categories if no saved settings
+    setLocalSettings(settings);
+    onSettingsChange(settings);
+  }, [settings, onSettingsChange]);
+
+  // Set default categories when categories list changes and no categories are selected
+  useEffect(() => {
+    if (!loading && categories.length > 0 && settings.defaultSelectedCategories.length === 0) {
       const defaultWithCategories = {
-        ...defaultSettings,
+        ...settings,
         defaultSelectedCategories: availableCategories
       };
-      setSettings(defaultWithCategories);
-      onSettingsChange(defaultWithCategories);
+      setLocalSettings(defaultWithCategories);
+      saveToDatabase(defaultWithCategories);
     }
-  }, [categories]);
+  }, [categories, settings, availableCategories, loading, saveToDatabase]);
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-      onSettingsChange(settings);
+      await saveToDatabase(localSettings);
+      setIsOpen(false);
       toast({
         title: "Settings Saved",
-        description: "Default visualization filters have been updated",
+        description: "Your visualization preferences have been saved across all devices",
       });
-      setIsOpen(false);
     } catch (error) {
       toast({
         title: "Error",
@@ -73,33 +58,36 @@ export const VisualizationSettings = ({ categories, onSettingsChange }: Visualiz
     }
   };
 
-  const resetToDefaults = () => {
-    const defaultWithCategories = {
-      ...defaultSettings,
-      defaultSelectedCategories: availableCategories
-    };
-    setSettings(defaultWithCategories);
-    localStorage.removeItem(STORAGE_KEY);
-    onSettingsChange(defaultWithCategories);
-    toast({
-      title: "Settings Reset",
-      description: "Default visualization filters have been reset",
-    });
+  const resetToDefaults = async () => {
+    try {
+      await resetInDatabase();
+      setIsOpen(false);
+      toast({
+        title: "Settings Reset",
+        description: "Your visualization preferences have been reset to defaults",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reset settings",
+        variant: "destructive",
+      });
+    }
   };
 
   const updateSelectedCategories = (category: string, checked: boolean) => {
     const updatedCategories = checked
-      ? [...settings.defaultSelectedCategories, category]
-      : settings.defaultSelectedCategories.filter(c => c !== category);
+      ? [...localSettings.defaultSelectedCategories, category]
+      : localSettings.defaultSelectedCategories.filter(c => c !== category);
     
-    setSettings(prev => ({
+    setLocalSettings(prev => ({
       ...prev,
       defaultSelectedCategories: updatedCategories
     }));
   };
 
   const toggleAllCategories = (checked: boolean) => {
-    setSettings(prev => ({
+    setLocalSettings(prev => ({
       ...prev,
       defaultSelectedCategories: checked ? availableCategories : []
     }));
@@ -130,8 +118,8 @@ export const VisualizationSettings = ({ categories, onSettingsChange }: Visualiz
             <div className="space-y-2">
               <Label>Default Time Period</Label>
               <Select 
-                value={settings.defaultTimePeriod.toString()} 
-                onValueChange={(value) => setSettings(prev => ({ ...prev, defaultTimePeriod: parseInt(value) }))}
+                value={localSettings.defaultTimePeriod.toString()} 
+                onValueChange={(value) => setLocalSettings(prev => ({ ...prev, defaultTimePeriod: parseInt(value) }))}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -154,7 +142,7 @@ export const VisualizationSettings = ({ categories, onSettingsChange }: Visualiz
                 <div className="flex items-center space-x-2 pb-2 border-b">
                   <Checkbox
                     id="all-categories-default"
-                    checked={settings.defaultSelectedCategories.length === availableCategories.length}
+                    checked={localSettings.defaultSelectedCategories.length === availableCategories.length}
                     onCheckedChange={toggleAllCategories}
                   />
                   <Label htmlFor="all-categories-default" className="text-sm font-medium">
@@ -165,7 +153,7 @@ export const VisualizationSettings = ({ categories, onSettingsChange }: Visualiz
                   <div key={category} className="flex items-center space-x-2">
                     <Checkbox
                       id={`default-category-${category}`}
-                      checked={settings.defaultSelectedCategories.includes(category)}
+                      checked={localSettings.defaultSelectedCategories.includes(category)}
                       onCheckedChange={(checked) => updateSelectedCategories(category, checked as boolean)}
                     />
                     <Label htmlFor={`default-category-${category}`} className="text-sm">
@@ -175,7 +163,7 @@ export const VisualizationSettings = ({ categories, onSettingsChange }: Visualiz
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                {settings.defaultSelectedCategories.length} of {availableCategories.length} categories selected
+                {localSettings.defaultSelectedCategories.length} of {availableCategories.length} categories selected
               </p>
             </div>
 

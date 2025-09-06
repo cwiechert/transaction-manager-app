@@ -55,7 +55,6 @@ export type Database = {
           transaction_timestamp_local: string | null
           transaction_type: string | null
           transferation_destination: string | null
-          transferation_source: string | null
           transferation_type: string | null
           user_email: string | null
           user_id: string | null
@@ -73,7 +72,6 @@ export type Database = {
           transaction_timestamp_local?: string | null
           transaction_type?: string | null
           transferation_destination?: string | null
-          transferation_source?: string | null
           transferation_type?: string | null
           user_email?: string | null
           user_id?: string | null
@@ -91,10 +89,33 @@ export type Database = {
           transaction_timestamp_local?: string | null
           transaction_type?: string | null
           transferation_destination?: string | null
-          transferation_source?: string | null
           transferation_type?: string | null
           user_email?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          visualization_settings: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          visualization_settings?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          visualization_settings?: Json | null
         }
         Relationships: []
       }

@@ -57,20 +57,9 @@ export const TransactionCategorizer = () => {
   const [updating, setUpdating] = useState<string | null>(null);
   const [transactionLimit, setTransactionLimit] = useState(10);
   const [showRules, setShowRules] = useState(false);
-  const [visualizationSettings, setVisualizationSettings] = useState(() => {
-    // Load from localStorage on initial state
-    const saved = localStorage.getItem('visualizationDefaultSettings');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (error) {
-        console.error('Failed to parse saved visualization settings:', error);
-      }
-    }
-    return {
-      defaultTimePeriod: 3,
-      defaultSelectedCategories: [] as string[]
-    };
+  const [visualizationSettings, setVisualizationSettings] = useState({
+    defaultTimePeriod: 3,
+    defaultSelectedCategories: [] as string[]
   });
   const { toast } = useToast();
   const { user, signOut } = useAuth();
