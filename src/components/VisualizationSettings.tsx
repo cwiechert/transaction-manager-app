@@ -53,7 +53,7 @@ export const VisualizationSettings = ({ categories, onSettingsChange }: Visualiz
       setSettings(defaultWithCategories);
       onSettingsChange(defaultWithCategories);
     }
-  }, [categories, onSettingsChange]);
+  }, [categories]);
 
   const saveSettings = () => {
     try {
