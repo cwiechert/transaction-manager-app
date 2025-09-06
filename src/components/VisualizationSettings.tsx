@@ -30,10 +30,8 @@ export const VisualizationSettings = ({ categories, onSettingsChange }: Visualiz
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
 
-  // Filter out excluded categories
-  const availableCategories = categories.filter(cat => 
-    cat !== 'Inversion' && cat !== 'Otros'
-  );
+  // Use all available categories
+  const availableCategories = categories;
 
   useEffect(() => {
     // Load settings from localStorage on component mount
