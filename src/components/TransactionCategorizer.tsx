@@ -826,30 +826,30 @@ const TransactionVisualizations = ({
   // Use all categories (no exclusions)
   const availableCategories = allCategories;
   
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
-    if (defaultSettings?.defaultSelectedCategories.length) {
-      return defaultSettings.defaultSelectedCategories.filter(cat => availableCategories.includes(cat));
-    }
-    return availableCategories;
-  });
-  
-  const [selectedMonths, setSelectedMonths] = useState<number>(() => {
-    return defaultSettings?.defaultTimePeriod || 3;
-  });
-  
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedMonths, setSelectedMonths] = useState<number>(3);
   const [categoryChartView, setCategoryChartView] = useState<'filtered' | 'current'>('filtered');
   const [usdToClp, setUsdToClp] = useState<number>(900);
+  const [settingsApplied, setSettingsApplied] = useState(false);
 
-  // Apply default settings only on initial load, not when they change
+  // Apply default settings when they become available
   useEffect(() => {
-    if (defaultSettings && !selectedCategories.length) {
+    if (defaultSettings && !settingsApplied) {
       if (defaultSettings.defaultSelectedCategories.length > 0) {
         const validCategories = defaultSettings.defaultSelectedCategories.filter(cat => availableCategories.includes(cat));
         setSelectedCategories(validCategories);
+      } else {
+        // If no default categories are set, use all available categories
+        setSelectedCategories(availableCategories);
       }
       setSelectedMonths(defaultSettings.defaultTimePeriod);
+      setSettingsApplied(true);
+    } else if (!defaultSettings && !settingsApplied && availableCategories.length > 0) {
+      // Fallback: if no default settings available, use all categories
+      setSelectedCategories(availableCategories);
+      setSettingsApplied(true);
     }
-  }, [defaultSettings?.defaultSelectedCategories, defaultSettings?.defaultTimePeriod, availableCategories]);
+  }, [defaultSettings, availableCategories, settingsApplied]);
 
   useEffect(() => {
     (async () => {
