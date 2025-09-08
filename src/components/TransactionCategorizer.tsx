@@ -301,6 +301,7 @@ export const TransactionCategorizer = () => {
                 onUpdate={updateTransaction}
                 isUpdating={updating === transaction.Id}
                 showApplyToAll={true}
+                categorizationRules={categorizationRules}
               />
             ))}
             
@@ -344,6 +345,7 @@ export const TransactionCategorizer = () => {
                 onUpdate={updateTransaction}
                 isUpdating={updating === transaction.Id}
                 showApplyToAll={true}
+                categorizationRules={categorizationRules}
               />
             ))}
           </TabsContent>
@@ -2095,14 +2097,14 @@ interface TransactionCardProps {
   onUpdate: (id: string, category: string, description: string, applyToAll: boolean, paymentReason: string) => Promise<void>;
   isUpdating: boolean;
   showApplyToAll: boolean;
+  categorizationRules: CategorizationRule[];
 }
 
-const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showApplyToAll }: TransactionCardProps) => {
+const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showApplyToAll, categorizationRules }: TransactionCardProps) => {
   const [category, setCategory] = useState(transaction.category || "");
   const [customCategory, setCustomCategory] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [description, setDescription] = useState(transaction.description || "");
-  const [applyToAll, setApplyToAll] = useState(false);
   const [amount, setAmount] = useState(transaction.amount.toString());
   const [isEditingAmount, setIsEditingAmount] = useState(false);
 
@@ -2114,6 +2116,11 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
   const effectivePaymentReason = isTransferToThird ?
     transaction.transferation_type :
     transaction.payment_reason;
+
+  // Check if there's an existing rule for this transaction
+  const [applyToAll, setApplyToAll] = useState(() => {
+    return categorizationRules.some(rule => rule.payment_reason === effectivePaymentReason);
+  });
 
   // Get the display title for the transaction
   const getDisplayTitle = () => {
