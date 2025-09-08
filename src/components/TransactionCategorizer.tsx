@@ -343,7 +343,7 @@ export const TransactionCategorizer = () => {
                 categories={categories}
                 onUpdate={updateTransaction}
                 isUpdating={updating === transaction.Id}
-                showApplyToAll={false}
+                showApplyToAll={true}
               />
             ))}
           </TabsContent>
@@ -2315,7 +2315,7 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
             </div>
           </div>
 
-          {showApplyToAll && !isTransferToThird && (
+          {showApplyToAll && (
             <div className="flex items-center space-x-2">
               <Checkbox
                 id={`apply-all-${transaction.Id}`}
