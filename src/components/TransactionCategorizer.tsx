@@ -836,21 +836,19 @@ const TransactionVisualizations = ({
   // Apply default settings when they become available
   useEffect(() => {
     // Only apply settings when we have available categories and either have default settings or confirmed no default settings
-    if (availableCategories.length > 0) {
-      if (defaultSettings?.defaultSelectedCategories) {
+    if (availableCategories.length > 0 && defaultSettings) {
+      if (defaultSettings.defaultSelectedCategories && defaultSettings.defaultSelectedCategories.length > 0) {
         const validCategories = defaultSettings.defaultSelectedCategories.filter(cat => availableCategories.includes(cat));
         if (validCategories.length > 0) {
           setSelectedCategories(validCategories);
         } else {
           setSelectedCategories(availableCategories);
         }
-        setSelectedMonths(defaultSettings.defaultTimePeriod);
-      } else if (defaultSettings && defaultSettings.defaultSelectedCategories.length === 0) {
+      } else {
         // Default settings loaded but no categories specified - use all
         setSelectedCategories(availableCategories);
-        setSelectedMonths(defaultSettings.defaultTimePeriod);
       }
-      // If defaultSettings is undefined, wait for it to load - don't set any categories yet
+      setSelectedMonths(defaultSettings.defaultTimePeriod);
     }
   }, [defaultSettings, availableCategories]);
 
