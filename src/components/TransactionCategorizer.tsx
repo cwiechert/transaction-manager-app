@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -823,7 +823,10 @@ const TransactionVisualizations = ({
   defaultSettings?: DefaultVisualizationSettings;
 }) => {
   // Get all unique categories
-  const allCategories = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
+  const allCategories = useMemo(
+    () => [...new Set(transactions.map(t => t.category).filter(Boolean))].sort(),
+    [transactions]
+  );
   
   // Use all categories (no exclusions)
   const availableCategories = allCategories;
@@ -832,10 +835,10 @@ const TransactionVisualizations = ({
   const [selectedMonths, setSelectedMonths] = useState<number>(3);
   const [categoryChartView, setCategoryChartView] = useState<'filtered' | 'current'>('filtered');
   const [usdToClp, setUsdToClp] = useState<number>(900);
-
+ 
   // Apply default settings when they become available
   useEffect(() => {
-    // Only apply settings when we have available categories and either have default settings or confirmed no default settings
+    // Only apply settings when we have available categories and default settings
     if (availableCategories.length > 0 && defaultSettings) {
       if (defaultSettings.defaultSelectedCategories && defaultSettings.defaultSelectedCategories.length > 0) {
         const validCategories = defaultSettings.defaultSelectedCategories.filter(cat => availableCategories.includes(cat));
