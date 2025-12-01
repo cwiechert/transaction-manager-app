@@ -2323,7 +2323,9 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
             </div>
           </div>
 
-          {showApplyToAll && effectivePaymentReason.toLowerCase() !== 'transferencias' && (
+          {showApplyToAll && 
+           effectivePaymentReason.toLowerCase() !== 'transferencias' && 
+           !effectivePaymentReason.toLowerCase().includes('transferencia') && (
             <div className="flex items-center space-x-2">
               <Checkbox
                 id={`apply-all-${transaction.Id}`}
