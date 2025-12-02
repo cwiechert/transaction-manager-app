@@ -936,8 +936,7 @@ const TransactionVisualizations = ({
 
   const monthlyChartData = Object.entries(monthlyData)
     .map(([month, amount]) => ({ month, amount }))
-    .sort((a, b) => a.month.localeCompare(b.month))
-    .slice(-6); // Last 6 months
+    .sort((a, b) => a.month.localeCompare(b.month));
 
 
   // Get unique categories from transactions
