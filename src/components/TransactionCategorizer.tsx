@@ -337,17 +337,35 @@ export const TransactionCategorizer = () => {
               </div>
             </div>
             
-            {recentTransactions.map((transaction) => (
-              <TransactionCard
-                key={transaction.Id}
-                transaction={transaction}
-                categories={categories}
-                onUpdate={updateTransaction}
-                isUpdating={updating === transaction.Id}
-                showApplyToAll={true}
-                categorizationRules={categorizationRules}
-              />
-            ))}
+            <div className="rounded-md border">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left p-4 font-semibold">Date</th>
+                      <th className="text-left p-4 font-semibold">Payment Reason</th>
+                      <th className="text-left p-4 font-semibold">Amount</th>
+                      <th className="text-left p-4 font-semibold">Category</th>
+                      <th className="text-left p-4 font-semibold">Description</th>
+                      <th className="text-left p-4 font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentTransactions.map((transaction) => (
+                      <TransactionTableRow
+                        key={transaction.Id}
+                        transaction={transaction}
+                        categories={categories}
+                        onUpdate={updateTransaction}
+                        isUpdating={updating === transaction.Id}
+                        showApplyToAll={true}
+                        categorizationRules={categorizationRules}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="visualizations" className="space-y-6">
@@ -2099,6 +2117,279 @@ interface TransactionCardProps {
   showApplyToAll: boolean;
   categorizationRules: CategorizationRule[];
 }
+
+// New Table Row Component for Edit Recent Tab
+const TransactionTableRow = ({ transaction, categories, onUpdate, isUpdating, showApplyToAll, categorizationRules }: TransactionCardProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [category, setCategory] = useState(transaction.category || "");
+  const [customCategory, setCustomCategory] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [description, setDescription] = useState(transaction.description || "");
+  const [amount, setAmount] = useState(transaction.amount.toString());
+  const [isEditingAmount, setIsEditingAmount] = useState(false);
+
+  // Determine if this is a "Transferencia a/para Terceros" case
+  const isTransferToThird = transaction.transaction_type === "Transferencia" &&
+    (transaction.transferation_type === "Transferencia a Terceros" || transaction.transferation_type === "Transferencias a Terceros");
+
+  const effectivePaymentReason = isTransferToThird ?
+    transaction.transferation_type :
+    transaction.payment_reason;
+
+  const [applyToAll, setApplyToAll] = useState(() => {
+    return categorizationRules.some(rule => rule.payment_reason === effectivePaymentReason);
+  });
+
+  const getDisplayTitle = () => {
+    if (transaction.transaction_type === "Transferencia") {
+      if (transaction.transferation_type === "Transferencia a Terceros" || transaction.transferation_type === "Transferencias a Terceros") {
+        return transaction.transferation_destination 
+          ? `Transferencias a terceros: ${transaction.transferation_destination}`
+          : transaction.transferation_type || "Transferencia";
+      }
+      return transaction.transferation_type || transaction.payment_reason || "Transferencia";
+    }
+    return transaction.payment_reason;
+  };
+
+  const displayTitle = getDisplayTitle();
+
+  const handleCategoryChange = (value: string) => {
+    if (value === "add_new") {
+      setShowCustomInput(true);
+      setCategory("");
+    } else {
+      setShowCustomInput(false);
+      setCategory(value);
+      setCustomCategory("");
+    }
+  };
+
+  const handleUpdate = async () => {
+    const finalCategory = showCustomInput ? customCategory.trim() : category.trim();
+    if (!finalCategory) return;
+    
+    await onUpdate(transaction.Id, finalCategory, description.trim(), applyToAll, effectivePaymentReason);
+    setIsEditing(false);
+  };
+
+  const handleAmountSubmit = async () => {
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      setAmount(transaction.amount.toString());
+      setIsEditingAmount(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ amount: numericAmount })
+        .eq('Id', transaction.Id);
+
+      if (error) {
+        console.error('Error updating amount:', error);
+        setAmount(transaction.amount.toString());
+      } else {
+        transaction.amount = numericAmount;
+      }
+    } catch (error) {
+      console.error('Error updating amount:', error);
+      setAmount(transaction.amount.toString());
+    }
+
+    setIsEditingAmount(false);
+  };
+
+  const formatAmount = (amount: number, currency: string) => {
+    if (currency === 'USD') {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    } else {
+      return new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(amount);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  return (
+    <tr className="border-b hover:bg-muted/25">
+      <td className="p-4">
+        <div className="text-sm">{formatDate(transaction.transaction_timestamp_local)}</div>
+      </td>
+      <td className="p-4">
+        <div className="min-w-[200px]">
+          <div className="text-sm font-medium">{displayTitle}</div>
+          {transaction.category && !isEditing && (
+            <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
+              {transaction.category}
+            </span>
+          )}
+        </div>
+      </td>
+      <td className="p-4">
+        {isEditingAmount ? (
+          <Input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            onBlur={handleAmountSubmit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAmountSubmit();
+              if (e.key === 'Escape') {
+                setAmount(transaction.amount.toString());
+                setIsEditingAmount(false);
+              }
+            }}
+            className="w-28 text-sm"
+            type="number"
+            step="0.01"
+            min="0"
+            autoFocus
+          />
+        ) : (
+          <div 
+            className="cursor-pointer hover:bg-muted/50 rounded px-2 py-1 -mx-2 -my-1 inline-block"
+            onClick={() => setIsEditingAmount(true)}
+            title="Click to edit amount"
+          >
+            <div className="text-sm font-medium">{formatAmount(parseFloat(amount), transaction.currency)}</div>
+          </div>
+        )}
+      </td>
+      <td className="p-4">
+        {isEditing ? (
+          <div className="space-y-2 min-w-[200px]">
+            {showCustomInput ? (
+              <Input
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                placeholder="Enter new category"
+                className="text-sm"
+                disabled={isUpdating}
+              />
+            ) : (
+              <Select value={category} onValueChange={handleCategoryChange} disabled={isUpdating}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="add_new">
+                    <span className="font-medium">+ Add new category</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {showApplyToAll && 
+             effectivePaymentReason.toLowerCase() !== 'transferencias' && 
+             !effectivePaymentReason.toLowerCase().includes('transferencia') && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id={`apply-all-${transaction.Id}`}
+                  checked={applyToAll}
+                  onCheckedChange={(checked) => setApplyToAll(checked === true)}
+                  disabled={isUpdating}
+                />
+                <Label htmlFor={`apply-all-${transaction.Id}`} className="text-xs">
+                  Always apply to "{effectivePaymentReason}"
+                </Label>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div 
+            className="cursor-pointer hover:bg-muted/50 p-2 rounded flex items-center gap-2"
+            onClick={() => setIsEditing(true)}
+          >
+            <span className="text-sm">{transaction.category || 'Not categorized'}</span>
+            <Edit className="h-3 w-3 text-muted-foreground" />
+          </div>
+        )}
+      </td>
+      <td className="p-4">
+        {isEditing ? (
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Add description"
+            className="text-sm min-w-[150px]"
+            disabled={isUpdating}
+          />
+        ) : (
+          <div 
+            className="cursor-pointer hover:bg-muted/50 p-2 rounded flex items-center gap-2"
+            onClick={() => setIsEditing(true)}
+          >
+            <span className="text-sm text-muted-foreground">{transaction.description || 'Add description'}</span>
+            <Edit className="h-3 w-3 text-muted-foreground" />
+          </div>
+        )}
+      </td>
+      <td className="p-4">
+        {isEditing ? (
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleUpdate}
+              disabled={(!category.trim() && !customCategory.trim()) || isUpdating}
+              size="sm"
+            >
+              {isUpdating ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                </>
+              ) : (
+                'Save'
+              )}
+            </Button>
+            <Button
+              onClick={() => {
+                setIsEditing(false);
+                setCategory(transaction.category || "");
+                setDescription(transaction.description || "");
+                setShowCustomInput(false);
+              }}
+              variant="ghost"
+              size="sm"
+              disabled={isUpdating}
+            >
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <Button
+            onClick={() => setIsEditing(true)}
+            variant="outline"
+            size="sm"
+          >
+            <Edit className="h-3 w-3 mr-1" />
+            Edit
+          </Button>
+        )}
+      </td>
+    </tr>
+  );
+};
 
 const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showApplyToAll, categorizationRules }: TransactionCardProps) => {
   const [category, setCategory] = useState(transaction.category || "");
