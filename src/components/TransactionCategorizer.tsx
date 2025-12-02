@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { VisualizationSettings } from "@/components/VisualizationSettings";
-import { Loader2, Edit, BarChart3, TrendingUp, LogOut, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, Edit, BarChart3, TrendingUp, LogOut, Check, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -22,6 +22,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+} from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import { ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend, Tooltip } from 'recharts';
 
@@ -55,7 +60,8 @@ export const TransactionCategorizer = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  const [transactionLimit, setTransactionLimit] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 15;
   const [showRules, setShowRules] = useState(false);
   const [visualizationSettings, setVisualizationSettings] = useState({
     defaultTimePeriod: 3,
@@ -70,7 +76,7 @@ export const TransactionCategorizer = () => {
     fetchAllTransactions();
     fetchCategories();
     fetchCategorizationRules();
-  }, [transactionLimit]);
+  }, [currentPage]);
 
   const fetchUncategorizedTransactions = async () => {
     try {
@@ -100,7 +106,7 @@ export const TransactionCategorizer = () => {
         .select('Id, payment_reason, amount, currency, transaction_timestamp_local, category, description, transaction_type, transferation_type, transferation_destination')
         .neq('category', 'Pago de Tarjeta de Crédito')
         .order('transaction_timestamp_local', { ascending: false })
-        .limit(transactionLimit);
+        .limit(100); // Fetch more records for pagination
 
       if (error) throw error;
       setRecentTransactions(data || []);
@@ -317,55 +323,105 @@ export const TransactionCategorizer = () => {
           </TabsContent>
           
           <TabsContent value="edit" className="space-y-4">
-            <div className="mb-4 flex justify-between items-center">
-              <p className="text-muted-foreground">
-                Showing last {transactionLimit} transactions
-              </p>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="limit">Show:</Label>
-                <Select value={transactionLimit.toString()} onValueChange={(value) => setTransactionLimit(parseInt(value))}>
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="rounded-md border">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left p-4 font-semibold">Date</th>
-                      <th className="text-left p-4 font-semibold">Payment Reason</th>
-                      <th className="text-left p-4 font-semibold">Amount</th>
-                      <th className="text-left p-4 font-semibold">Category</th>
-                      <th className="text-left p-4 font-semibold">Description</th>
-                      <th className="text-left p-4 font-semibold">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentTransactions.map((transaction) => (
-                      <TransactionTableRow
-                        key={transaction.Id}
-                        transaction={transaction}
-                        categories={categories}
-                        onUpdate={updateTransaction}
-                        isUpdating={updating === transaction.Id}
-                        showApplyToAll={true}
-                        categorizationRules={categorizationRules}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {(() => {
+              const totalPages = Math.ceil(recentTransactions.length / recordsPerPage);
+              const startIndex = (currentPage - 1) * recordsPerPage;
+              const endIndex = startIndex + recordsPerPage;
+              const paginatedTransactions = recentTransactions.slice(startIndex, endIndex);
+              
+              return (
+                <>
+                  <div className="mb-4 flex justify-between items-center">
+                    <p className="text-muted-foreground">
+                      Showing {startIndex + 1}-{Math.min(endIndex, recentTransactions.length)} of {recentTransactions.length} transactions
+                    </p>
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="gap-1 pl-2.5"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span>Previous</span>
+                          </Button>
+                        </PaginationItem>
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <PaginationItem key={pageNum}>
+                              <Button
+                                variant={currentPage === pageNum ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setCurrentPage(pageNum)}
+                                className="w-9"
+                              >
+                                {pageNum}
+                              </Button>
+                            </PaginationItem>
+                          );
+                        })}
+                        <PaginationItem>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="gap-1 pr-2.5"
+                          >
+                            <span>Next</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                  
+                  <div className="rounded-md border">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="text-left p-4 font-semibold">Date</th>
+                            <th className="text-left p-4 font-semibold">Payment Reason</th>
+                            <th className="text-left p-4 font-semibold">Amount</th>
+                            <th className="text-left p-4 font-semibold">Category</th>
+                            <th className="text-left p-4 font-semibold">Description</th>
+                            <th className="text-left p-4 font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedTransactions.map((transaction) => (
+                            <TransactionTableRow
+                              key={transaction.Id}
+                              transaction={transaction}
+                              categories={categories}
+                              onUpdate={updateTransaction}
+                              isUpdating={updating === transaction.Id}
+                              showApplyToAll={true}
+                              categorizationRules={categorizationRules}
+                            />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </TabsContent>
 
           <TabsContent value="visualizations" className="space-y-6">
