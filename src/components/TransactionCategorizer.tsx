@@ -2237,11 +2237,6 @@ const TransactionTableRow = ({ transaction, categories, onUpdate, isUpdating, sh
       <td className="p-4">
         <div className="min-w-[200px]">
           <div className="text-sm font-medium">{displayTitle}</div>
-          {transaction.category && !isEditing && (
-            <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
-              {transaction.category}
-            </span>
-          )}
         </div>
       </td>
       <td className="p-4">
