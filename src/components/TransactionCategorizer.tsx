@@ -2391,8 +2391,8 @@ const TransactionTableRow = ({ transaction, categories, onUpdate, isUpdating, sh
     (transaction.transferation_type === "Transferencia a Terceros" || transaction.transferation_type === "Transferencias a Terceros");
 
   const effectivePaymentReason = isTransferToThird ?
-    transaction.transferation_type :
-    transaction.payment_reason;
+    (transaction.transferation_type || '') :
+    (transaction.payment_reason || '');
 
   const [applyToAll, setApplyToAll] = useState(() => {
     return categorizationRules.some(rule => rule.payment_reason === effectivePaymentReason);
@@ -2661,8 +2661,8 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
 
   // Get the effective payment reason (use transferation_type for third party transfers)
   const effectivePaymentReason = isTransferToThird ?
-    transaction.transferation_type :
-    transaction.payment_reason;
+    (transaction.transferation_type || '') :
+    (transaction.payment_reason || '');
 
   // Check if there's an existing rule for this transaction
   const [applyToAll, setApplyToAll] = useState(() => {
