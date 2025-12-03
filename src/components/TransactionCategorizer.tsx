@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { VisualizationSettings } from "@/components/VisualizationSettings";
-import { Loader2, Edit, BarChart3, TrendingUp, LogOut, Check, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Edit, BarChart3, TrendingUp, LogOut, Check, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -63,6 +63,7 @@ export const TransactionCategorizer = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 15;
   const [showRules, setShowRules] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [visualizationSettings, setVisualizationSettings] = useState({
     defaultTimePeriod: 3,
     defaultSelectedCategories: [] as string[]
@@ -253,6 +254,14 @@ export const TransactionCategorizer = () => {
             >
               {showRules ? 'Hide Rules' : 'Manage Rules'}
             </Button>
+            <Button 
+              onClick={() => setShowCategoryManager(!showCategoryManager)}
+              variant="outline"
+              size="sm"
+            >
+              <Tag className="h-4 w-4 mr-2" />
+              {showCategoryManager ? 'Hide Categories' : 'Edit Categories'}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -273,6 +282,20 @@ export const TransactionCategorizer = () => {
               categories={categories}
               onRulesUpdate={fetchCategorizationRules}
               allTransactions={allTransactions}
+            />
+          </div>
+        )}
+
+        {showCategoryManager && (
+          <div className="mb-6">
+            <CategoryManager 
+              categories={categories}
+              onCategoriesUpdate={() => {
+                fetchCategories();
+                fetchAllTransactions();
+                fetchRecentTransactions();
+                fetchUncategorizedTransactions();
+              }}
             />
           </div>
         )}
@@ -341,12 +364,24 @@ export const TransactionCategorizer = () => {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            className="gap-1"
+                            title="First page"
+                          >
+                            <ChevronsLeft className="h-4 w-4" />
+                          </Button>
+                        </PaginationItem>
+                        <PaginationItem>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                             disabled={currentPage === 1}
-                            className="gap-1 pl-2.5"
+                            className="gap-1"
                           >
                             <ChevronLeft className="h-4 w-4" />
-                            <span>Previous</span>
+                            <span className="hidden sm:inline">Previous</span>
                           </Button>
                         </PaginationItem>
                         {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -380,10 +415,22 @@ export const TransactionCategorizer = () => {
                             size="sm"
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                             disabled={currentPage === totalPages}
-                            className="gap-1 pr-2.5"
+                            className="gap-1"
                           >
-                            <span>Next</span>
+                            <span className="hidden sm:inline">Next</span>
                             <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </PaginationItem>
+                        <PaginationItem>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className="gap-1"
+                            title="Last page"
+                          >
+                            <ChevronsRight className="h-4 w-4" />
                           </Button>
                         </PaginationItem>
                       </PaginationContent>
@@ -398,6 +445,7 @@ export const TransactionCategorizer = () => {
                             <th className="text-left p-4 font-semibold">Date</th>
                             <th className="text-left p-4 font-semibold">Payment Reason</th>
                             <th className="text-left p-4 font-semibold">Amount</th>
+                            <th className="text-left p-4 font-semibold">Currency</th>
                             <th className="text-left p-4 font-semibold">Category</th>
                             <th className="text-left p-4 font-semibold">Description</th>
                             <th className="text-left p-4 font-semibold">Actions</th>
@@ -880,6 +928,160 @@ const CategorizationRuleRow = ({
         </div>
       </td>
     </tr>
+  );
+};
+
+// Category Manager Component
+const CategoryManager = ({ 
+  categories, 
+  onCategoriesUpdate 
+}: { 
+  categories: string[];
+  onCategoriesUpdate: () => void;
+}) => {
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [newName, setNewName] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const { toast } = useToast();
+
+  const handleEdit = (category: string) => {
+    setEditingCategory(category);
+    setNewName(category);
+  };
+
+  const handleSave = async () => {
+    if (!editingCategory || !newName.trim() || newName.trim() === editingCategory) {
+      setEditingCategory(null);
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      // Update all transactions with this category
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .update({ category: newName.trim() })
+        .eq('category', editingCategory);
+
+      if (transactionError) throw transactionError;
+
+      // Update all categorization rules with this category
+      const { error: ruleError } = await supabase
+        .from('categorization_rules')
+        .update({ category: newName.trim() })
+        .eq('category', editingCategory);
+
+      if (ruleError) throw ruleError;
+
+      toast({
+        title: "Success",
+        description: `Category renamed from "${editingCategory}" to "${newName.trim()}"`,
+      });
+
+      setEditingCategory(null);
+      setNewName("");
+      onCategoriesUpdate();
+    } catch (error) {
+      console.error('Error renaming category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to rename category",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingCategory(null);
+    setNewName("");
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Edit Categories</h3>
+        <p className="text-sm text-muted-foreground">{categories.length} categories</p>
+      </div>
+
+      <div className="rounded-md border">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="text-left p-4 font-semibold">Category Name</th>
+                <th className="text-left p-4 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categories.map((category) => (
+                <tr key={category} className="border-b hover:bg-muted/25">
+                  <td className="p-4">
+                    {editingCategory === category ? (
+                      <Input
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSave();
+                          if (e.key === 'Escape') handleCancel();
+                        }}
+                        className="max-w-[300px]"
+                        autoFocus
+                        disabled={isUpdating}
+                      />
+                    ) : (
+                      <div 
+                        className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-2 rounded"
+                        onClick={() => handleEdit(category)}
+                      >
+                        <span>{category}</span>
+                        <Edit className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-4">
+                    {editingCategory === category ? (
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={handleSave}
+                          disabled={isUpdating || !newName.trim() || newName.trim() === editingCategory}
+                        >
+                          {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={handleCancel}
+                          disabled={isUpdating}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => handleEdit(category)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {categories.length === 0 && (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-muted-foreground">
+              No categories found.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 };
 
@@ -2323,6 +2525,9 @@ const TransactionTableRow = ({ transaction, categories, onUpdate, isUpdating, sh
             <div className="text-sm font-medium">{formatAmount(parseFloat(amount), transaction.currency)}</div>
           </div>
         )}
+      </td>
+      <td className="p-4">
+        <span className="text-sm">{transaction.currency}</span>
       </td>
       <td className="p-4">
         {isEditing ? (
