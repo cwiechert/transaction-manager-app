@@ -61,12 +61,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // Session might already be invalidated, clear local state anyway
+      console.log('Sign out completed');
+    }
+    // Always clear local state regardless of API response
+    setSession(null);
+    setUser(null);
   };
 
-  // Auto-logout after 10 minutes of inactivity
+  // Auto-logout after 10 minutes of inactivity (only when user is logged in)
   useIdleTimeout({
-    onIdle: signOut,
+    onIdle: user ? signOut : () => {},
     idleTime: 10 * 60 * 1000 // 10 minutes
   });
 
