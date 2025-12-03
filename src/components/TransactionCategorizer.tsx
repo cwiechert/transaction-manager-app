@@ -2563,6 +2563,7 @@ const TransactionTableRow = ({ transaction, categories, onUpdate, isUpdating, sh
               </Select>
             )}
             {showApplyToAll && 
+             transaction.transaction_type !== "Abono Cuenta" &&
              effectivePaymentReason.toLowerCase() !== 'transferencias' && 
              !effectivePaymentReason.toLowerCase().includes('transferencia') && (
               <div className="flex items-center space-x-2">
@@ -2880,6 +2881,7 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
           </div>
 
           {showApplyToAll && 
+           transaction.transaction_type !== "Abono Cuenta" &&
            effectivePaymentReason.toLowerCase() !== 'transferencias' && 
            !effectivePaymentReason.toLowerCase().includes('transferencia') && (
             <div className="flex items-center space-x-2">
