@@ -2407,7 +2407,12 @@ const TransactionTableRow = ({ transaction, categories, onUpdate, isUpdating, sh
       }
       return transaction.transferation_type || transaction.payment_reason || "Transferencia";
     }
-    return transaction.payment_reason;
+    if (transaction.transaction_type === "Abono Cuenta") {
+      return transaction.transferation_destination 
+        ? `${transaction.transferation_type}: ${transaction.transferation_destination}`
+        : transaction.transferation_type || "Abono Cuenta";
+    }
+    return transaction.payment_reason || "Unknown";
   };
 
   const displayTitle = getDisplayTitle();
@@ -2679,7 +2684,12 @@ const TransactionCard = ({ transaction, categories, onUpdate, isUpdating, showAp
       }
       return transaction.transferation_type || transaction.payment_reason || "Transferencia";
     }
-    return transaction.payment_reason;
+    if (transaction.transaction_type === "Abono Cuenta") {
+      return transaction.transferation_destination 
+        ? `${transaction.transferation_type}: ${transaction.transferation_destination}`
+        : transaction.transferation_type || "Abono Cuenta";
+    }
+    return transaction.payment_reason || "Unknown";
   };
 
   const displayTitle = getDisplayTitle();
