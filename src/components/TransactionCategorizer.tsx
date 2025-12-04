@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { VisualizationSettings } from "@/components/VisualizationSettings";
-import { Loader2, Edit, BarChart3, TrendingUp, LogOut, Check, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag } from "lucide-react";
+import { Loader2, Edit, BarChart3, TrendingUp, LogOut, Check, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Tag, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -55,14 +55,14 @@ interface CategorizationRule {
 export const TransactionCategorizer = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
-  const [recentTransactionsLimit, setRecentTransactionsLimit] = useState(100);
-  const [recentTransactionsTotal, setRecentTransactionsTotal] = useState(0);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   // Edit Recent tab filters
   const [filterPaymentReason, setFilterPaymentReason] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterCurrency, setFilterCurrency] = useState("");
+  // Edit Recent tab sorting
+  const [sortColumn, setSortColumn] = useState<'date' | 'payment_reason' | 'amount' | 'currency' | 'category'>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [categorizationRules, setCategorizationRules] = useState<CategorizationRule[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,37 +107,20 @@ export const TransactionCategorizer = () => {
     }
   };
 
-  const fetchRecentTransactions = async (limit = recentTransactionsLimit) => {
+  const fetchRecentTransactions = async () => {
     try {
-      // Get total count first
-      const { count, error: countError } = await supabase
-        .from('transactions')
-        .select('*', { count: 'exact', head: true })
-        .neq('category', 'Pago de Tarjeta de Crédito');
-
-      if (countError) throw countError;
-      setRecentTransactionsTotal(count || 0);
-
       const { data, error } = await supabase
         .from('transactions')
         .select('Id, payment_reason, amount, currency, transaction_timestamp_local, category, description, transaction_type, transferation_type, transferation_destination')
         .neq('category', 'Pago de Tarjeta de Crédito')
         .order('transaction_timestamp_local', { ascending: false })
-        .limit(limit);
+        .limit(500);
 
       if (error) throw error;
       setRecentTransactions(data || []);
     } catch (error) {
       console.error('Failed to fetch recent transactions:', error);
     }
-  };
-
-  const loadMoreRecentTransactions = async () => {
-    setLoadingMore(true);
-    const newLimit = recentTransactionsLimit + 100;
-    setRecentTransactionsLimit(newLimit);
-    await fetchRecentTransactions(newLimit);
-    setLoadingMore(false);
   };
 
   const fetchAllTransactions = async () => {
@@ -371,26 +354,99 @@ export const TransactionCategorizer = () => {
           
           <TabsContent value="edit" className="space-y-4">
             {(() => {
+              // Get unique payment reasons for filter dropdown
+              const uniquePaymentReasons = [...new Set(recentTransactions.map(t => {
+                if (t.transaction_type === "Transferencia" && 
+                    (t.transferation_type === "Transferencia a Terceros" || t.transferation_type === "Transferencias a Terceros")) {
+                  return t.transferation_destination || t.transferation_type;
+                }
+                if (t.transaction_type === "Abono Cuenta") {
+                  return t.transferation_destination 
+                    ? `${t.transferation_type}: ${t.transferation_destination}`
+                    : t.transferation_type;
+                }
+                return t.payment_reason;
+              }).filter(Boolean))].sort();
+
+              // Get unique currencies for filter
+              const uniqueCurrencies = [...new Set(recentTransactions.map(t => t.currency).filter(Boolean))];
+
+              // Helper to get display title for sorting
+              const getDisplayTitle = (t: Transaction) => {
+                if (t.transaction_type === "Transferencia") {
+                  if (t.transferation_type === "Transferencia a Terceros" || t.transferation_type === "Transferencias a Terceros") {
+                    return t.transferation_destination 
+                      ? `Transferencias a terceros: ${t.transferation_destination}`
+                      : t.transferation_type || "Transferencia";
+                  }
+                  return t.transferation_type || t.payment_reason || "Transferencia";
+                }
+                if (t.transaction_type === "Abono Cuenta") {
+                  return t.transferation_destination 
+                    ? `${t.transferation_type}: ${t.transferation_destination}`
+                    : t.transferation_type || "Abono Cuenta";
+                }
+                return t.payment_reason || "Unknown";
+              };
+
               // Filter transactions based on filters
               const filteredTransactions = recentTransactions.filter(t => {
-                const matchesPaymentReason = !filterPaymentReason || 
-                  (t.payment_reason?.toLowerCase().includes(filterPaymentReason.toLowerCase()) ||
-                   t.transferation_type?.toLowerCase().includes(filterPaymentReason.toLowerCase()) ||
-                   t.transferation_destination?.toLowerCase().includes(filterPaymentReason.toLowerCase()));
+                const displayTitle = getDisplayTitle(t);
+                const matchesPaymentReason = !filterPaymentReason || filterPaymentReason === "all" ||
+                  displayTitle.toLowerCase().includes(filterPaymentReason.toLowerCase());
                 const matchesCategory = !filterCategory || filterCategory === "all" ||
-                  t.category?.toLowerCase().includes(filterCategory.toLowerCase());
+                  t.category === filterCategory;
                 const matchesCurrency = !filterCurrency || filterCurrency === "all" ||
                   t.currency === filterCurrency;
                 return matchesPaymentReason && matchesCategory && matchesCurrency;
               });
 
-              const totalPages = Math.ceil(filteredTransactions.length / recordsPerPage);
+              // Sort filtered transactions
+              const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+                let comparison = 0;
+                switch (sortColumn) {
+                  case 'date':
+                    comparison = new Date(a.transaction_timestamp_local).getTime() - new Date(b.transaction_timestamp_local).getTime();
+                    break;
+                  case 'payment_reason':
+                    comparison = (getDisplayTitle(a) || '').localeCompare(getDisplayTitle(b) || '');
+                    break;
+                  case 'amount':
+                    comparison = (a.amount || 0) - (b.amount || 0);
+                    break;
+                  case 'currency':
+                    comparison = (a.currency || '').localeCompare(b.currency || '');
+                    break;
+                  case 'category':
+                    comparison = (a.category || '').localeCompare(b.category || '');
+                    break;
+                }
+                return sortDirection === 'asc' ? comparison : -comparison;
+              });
+
+              const totalPages = Math.ceil(sortedTransactions.length / recordsPerPage);
               const startIndex = (currentPage - 1) * recordsPerPage;
               const endIndex = startIndex + recordsPerPage;
-              const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
-              
-              // Get unique currencies for filter
-              const uniqueCurrencies = [...new Set(recentTransactions.map(t => t.currency).filter(Boolean))];
+              const paginatedTransactions = sortedTransactions.slice(startIndex, endIndex);
+
+              const handleSort = (column: typeof sortColumn) => {
+                if (sortColumn === column) {
+                  setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                } else {
+                  setSortColumn(column);
+                  setSortDirection('desc');
+                }
+                setCurrentPage(1);
+              };
+
+              const SortIcon = ({ column }: { column: typeof sortColumn }) => {
+                if (sortColumn !== column) {
+                  return <ArrowUpDown className="h-3 w-3 ml-1 text-muted-foreground" />;
+                }
+                return sortDirection === 'asc' 
+                  ? <ArrowUp className="h-3 w-3 ml-1" />
+                  : <ArrowDown className="h-3 w-3 ml-1" />;
+              };
               
               return (
                 <>
@@ -398,15 +454,23 @@ export const TransactionCategorizer = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
                     <div>
                       <Label className="text-xs text-muted-foreground mb-1 block">Payment Reason</Label>
-                      <Input
-                        placeholder="Filter by payment reason..."
-                        value={filterPaymentReason}
-                        onChange={(e) => {
-                          setFilterPaymentReason(e.target.value);
+                      <Select 
+                        value={filterPaymentReason} 
+                        onValueChange={(v) => {
+                          setFilterPaymentReason(v);
                           setCurrentPage(1);
                         }}
-                        className="h-9"
-                      />
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="All payment reasons" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All payment reasons</SelectItem>
+                          {uniquePaymentReasons.map((reason) => (
+                            <SelectItem key={reason} value={reason!}>{reason}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground mb-1 block">Category</Label>
@@ -452,27 +516,8 @@ export const TransactionCategorizer = () => {
 
                   <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                     <div className="text-muted-foreground text-sm">
-                      <span>Showing {filteredTransactions.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, filteredTransactions.length)} of {filteredTransactions.length} filtered</span>
-                      <span className="text-xs ml-2">({recentTransactions.length} loaded / {recentTransactionsTotal} total)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {recentTransactions.length < recentTransactionsTotal && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={loadMoreRecentTransactions}
-                          disabled={loadingMore}
-                        >
-                          {loadingMore ? (
-                            <>
-                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                              Loading...
-                            </>
-                          ) : (
-                            `Load More (${Math.min(100, recentTransactionsTotal - recentTransactions.length)} more)`
-                          )}
-                        </Button>
-                      )}
+                      <span>Showing {sortedTransactions.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, sortedTransactions.length)} of {sortedTransactions.length} transactions</span>
+                      <span className="text-xs ml-2">(last 500 loaded)</span>
                     </div>
                   </div>
 
@@ -561,11 +606,51 @@ export const TransactionCategorizer = () => {
                       <table className="w-full">
                         <thead>
                           <tr className="border-b bg-muted/50">
-                            <th className="text-left p-4 font-semibold">Date</th>
-                            <th className="text-left p-4 font-semibold">Payment Reason</th>
-                            <th className="text-left p-4 font-semibold">Amount</th>
-                            <th className="text-left p-4 font-semibold">Currency</th>
-                            <th className="text-left p-4 font-semibold">Category</th>
+                            <th 
+                              className="text-left p-4 font-semibold cursor-pointer hover:bg-muted/70 select-none"
+                              onClick={() => handleSort('date')}
+                            >
+                              <div className="flex items-center">
+                                Date
+                                <SortIcon column="date" />
+                              </div>
+                            </th>
+                            <th 
+                              className="text-left p-4 font-semibold cursor-pointer hover:bg-muted/70 select-none"
+                              onClick={() => handleSort('payment_reason')}
+                            >
+                              <div className="flex items-center">
+                                Payment Reason
+                                <SortIcon column="payment_reason" />
+                              </div>
+                            </th>
+                            <th 
+                              className="text-left p-4 font-semibold cursor-pointer hover:bg-muted/70 select-none"
+                              onClick={() => handleSort('amount')}
+                            >
+                              <div className="flex items-center">
+                                Amount
+                                <SortIcon column="amount" />
+                              </div>
+                            </th>
+                            <th 
+                              className="text-left p-4 font-semibold cursor-pointer hover:bg-muted/70 select-none"
+                              onClick={() => handleSort('currency')}
+                            >
+                              <div className="flex items-center">
+                                Currency
+                                <SortIcon column="currency" />
+                              </div>
+                            </th>
+                            <th 
+                              className="text-left p-4 font-semibold cursor-pointer hover:bg-muted/70 select-none"
+                              onClick={() => handleSort('category')}
+                            >
+                              <div className="flex items-center">
+                                Category
+                                <SortIcon column="category" />
+                              </div>
+                            </th>
                             <th className="text-left p-4 font-semibold">Description</th>
                             <th className="text-left p-4 font-semibold">Actions</th>
                           </tr>
