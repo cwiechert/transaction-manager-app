@@ -55,7 +55,14 @@ interface CategorizationRule {
 export const TransactionCategorizer = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [recentTransactionsLimit, setRecentTransactionsLimit] = useState(100);
+  const [recentTransactionsTotal, setRecentTransactionsTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  // Edit Recent tab filters
+  const [filterPaymentReason, setFilterPaymentReason] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterCurrency, setFilterCurrency] = useState("");
   const [categorizationRules, setCategorizationRules] = useState<CategorizationRule[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,20 +107,37 @@ export const TransactionCategorizer = () => {
     }
   };
 
-  const fetchRecentTransactions = async () => {
+  const fetchRecentTransactions = async (limit = recentTransactionsLimit) => {
     try {
+      // Get total count first
+      const { count, error: countError } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true })
+        .neq('category', 'Pago de Tarjeta de Crédito');
+
+      if (countError) throw countError;
+      setRecentTransactionsTotal(count || 0);
+
       const { data, error } = await supabase
         .from('transactions')
         .select('Id, payment_reason, amount, currency, transaction_timestamp_local, category, description, transaction_type, transferation_type, transferation_destination')
         .neq('category', 'Pago de Tarjeta de Crédito')
         .order('transaction_timestamp_local', { ascending: false })
-        .limit(100); // Fetch more records for pagination
+        .limit(limit);
 
       if (error) throw error;
       setRecentTransactions(data || []);
     } catch (error) {
       console.error('Failed to fetch recent transactions:', error);
     }
+  };
+
+  const loadMoreRecentTransactions = async () => {
+    setLoadingMore(true);
+    const newLimit = recentTransactionsLimit + 100;
+    setRecentTransactionsLimit(newLimit);
+    await fetchRecentTransactions(newLimit);
+    setLoadingMore(false);
   };
 
   const fetchAllTransactions = async () => {
@@ -347,17 +371,112 @@ export const TransactionCategorizer = () => {
           
           <TabsContent value="edit" className="space-y-4">
             {(() => {
-              const totalPages = Math.ceil(recentTransactions.length / recordsPerPage);
+              // Filter transactions based on filters
+              const filteredTransactions = recentTransactions.filter(t => {
+                const matchesPaymentReason = !filterPaymentReason || 
+                  (t.payment_reason?.toLowerCase().includes(filterPaymentReason.toLowerCase()) ||
+                   t.transferation_type?.toLowerCase().includes(filterPaymentReason.toLowerCase()) ||
+                   t.transferation_destination?.toLowerCase().includes(filterPaymentReason.toLowerCase()));
+                const matchesCategory = !filterCategory || filterCategory === "all" ||
+                  t.category?.toLowerCase().includes(filterCategory.toLowerCase());
+                const matchesCurrency = !filterCurrency || filterCurrency === "all" ||
+                  t.currency === filterCurrency;
+                return matchesPaymentReason && matchesCategory && matchesCurrency;
+              });
+
+              const totalPages = Math.ceil(filteredTransactions.length / recordsPerPage);
               const startIndex = (currentPage - 1) * recordsPerPage;
               const endIndex = startIndex + recordsPerPage;
-              const paginatedTransactions = recentTransactions.slice(startIndex, endIndex);
+              const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
+              
+              // Get unique currencies for filter
+              const uniqueCurrencies = [...new Set(recentTransactions.map(t => t.currency).filter(Boolean))];
               
               return (
                 <>
-                  <div className="mb-4 flex justify-between items-center">
-                    <p className="text-muted-foreground">
-                      Showing {startIndex + 1}-{Math.min(endIndex, recentTransactions.length)} of {recentTransactions.length} transactions
-                    </p>
+                  {/* Column Filters */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">Payment Reason</Label>
+                      <Input
+                        placeholder="Filter by payment reason..."
+                        value={filterPaymentReason}
+                        onChange={(e) => {
+                          setFilterPaymentReason(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">Category</Label>
+                      <Select 
+                        value={filterCategory} 
+                        onValueChange={(v) => {
+                          setFilterCategory(v);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="All categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All categories</SelectItem>
+                          {categories.map((cat) => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">Currency</Label>
+                      <Select 
+                        value={filterCurrency} 
+                        onValueChange={(v) => {
+                          setFilterCurrency(v);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="All currencies" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All currencies</SelectItem>
+                          {uniqueCurrencies.map((cur) => (
+                            <SelectItem key={cur} value={cur!}>{cur}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div className="text-muted-foreground text-sm">
+                      <span>Showing {filteredTransactions.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, filteredTransactions.length)} of {filteredTransactions.length} filtered</span>
+                      <span className="text-xs ml-2">({recentTransactions.length} loaded / {recentTransactionsTotal} total)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {recentTransactions.length < recentTransactionsTotal && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={loadMoreRecentTransactions}
+                          disabled={loadingMore}
+                        >
+                          {loadingMore ? (
+                            <>
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                              Loading...
+                            </>
+                          ) : (
+                            `Load More (${Math.min(100, recentTransactionsTotal - recentTransactions.length)} more)`
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end mb-2">
                     <Pagination>
                       <PaginationContent>
                         <PaginationItem>
@@ -414,7 +533,7 @@ export const TransactionCategorizer = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages}
+                            disabled={currentPage === totalPages || totalPages === 0}
                             className="gap-1"
                           >
                             <span className="hidden sm:inline">Next</span>
@@ -426,7 +545,7 @@ export const TransactionCategorizer = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => setCurrentPage(totalPages)}
-                            disabled={currentPage === totalPages}
+                            disabled={currentPage === totalPages || totalPages === 0}
                             className="gap-1"
                             title="Last page"
                           >
@@ -463,6 +582,13 @@ export const TransactionCategorizer = () => {
                               categorizationRules={categorizationRules}
                             />
                           ))}
+                          {paginatedTransactions.length === 0 && (
+                            <tr>
+                              <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                                No transactions match the current filters
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -2503,7 +2629,7 @@ const TransactionTableRow = ({ transaction, categories, onUpdate, isUpdating, sh
         </div>
       </td>
       <td className="p-4">
-        {isEditingAmount ? (
+        {isEditing && isEditingAmount ? (
           <Input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -2521,14 +2647,17 @@ const TransactionTableRow = ({ transaction, categories, onUpdate, isUpdating, sh
             min="0"
             autoFocus
           />
-        ) : (
+        ) : isEditing ? (
           <div 
             className="cursor-pointer hover:bg-muted/50 rounded px-2 py-1 -mx-2 -my-1 inline-block"
             onClick={() => setIsEditingAmount(true)}
             title="Click to edit amount"
           >
             <div className="text-sm font-medium">{formatAmount(parseFloat(amount), transaction.currency)}</div>
+            <Edit className="h-3 w-3 text-muted-foreground inline ml-1" />
           </div>
+        ) : (
+          <div className="text-sm font-medium">{formatAmount(parseFloat(amount), transaction.currency)}</div>
         )}
       </td>
       <td className="p-4">
@@ -2627,8 +2756,10 @@ const TransactionTableRow = ({ transaction, categories, onUpdate, isUpdating, sh
             <Button
               onClick={() => {
                 setIsEditing(false);
+                setIsEditingAmount(false);
                 setCategory(transaction.category || "");
                 setDescription(transaction.description || "");
+                setAmount(transaction.amount.toString());
                 setShowCustomInput(false);
               }}
               variant="ghost"
